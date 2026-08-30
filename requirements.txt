@@ -1,0 +1,19 @@
+# ============ 浙里选址 Agent 核心依赖 ============
+# 安装：pip install -r requirements.txt
+
+chainlit>=2.11.0          # 对话式 Web 界面（主入口）
+langgraph>=0.2.0          # Agent 状态图编排（多阶段决策流）
+requests>=2.31.0          # HTTP 请求
+python-dotenv>=1.0.0      # .env 配置加载
+Pillow>=10.0.0            # 地图/报告图片生成
+playwright>=1.40.0        # PDF 报告渲染 + 58同城店铺抓取（可选）
+
+# ---------- 可选：旧版 Streamlit 界面（src/ui/app.py）----------
+# streamlit>=1.36
+# plotly>=5.22
+# pandas>=2.0
+# folium>=0.16
+# streamlit-folium>=0.21
+
+# ---------- 可选：命令行演示（src/agent/agent.py）----------
+# openai>=1.30   （仅当使用 openai SDK 风格调用时）

@@ -1,0 +1,65 @@
+/* ============================================================
+   浙里选址 · 自定义美化样式
+   作用域：聊天消息内渲染的 markdown（卡片/表格/标题/引用）
+   不触碰 Chainlit 自身框架，安全低风险
+   ============================================================ */
+:root {
+  --zl-brand: #1d6f78;        /* 品牌青（替代原蓝，杜绝蓝竖线） */
+  --zl-brand-soft: #e6f2f1;   /* 浅青底 */
+  --zl-ink: #1e293b;          /* 深墨字 */
+  --zl-line: #e2e8f0;         /* 分割线 */
+}
+
+/* 标题：品牌蓝 + 左侧竖条，增强卡片层级感 */
+h1, h2, h3, h4 {
+  color: var(--zl-ink);
+  line-height: 1.35;
+}
+h3 {
+  border-left: 4px solid #b8860b;
+  padding-left: 10px;
+  margin-top: 22px;
+}
+
+/* 引用/提示块：浅蓝底 + 圆角 */
+blockquote {
+  background: var(--zl-brand-soft);
+  border-left: 4px solid var(--zl-brand) !important;
+  border-radius: 0 10px 10px 0;
+  padding: 8px 14px;
+  margin: 10px 0;
+}
+
+/* 表格（评分卡/对比表）：表头蓝底白字、斑马纹、圆角 */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  width: 100%;
+}
+thead {
+  background: var(--zl-brand);
+  color: #ffffff;
+}
+thead th {
+  color: #ffffff;
+  font-weight: 600;
+}
+th, td {
+  border-color: var(--zl-line) !important;
+  padding: 6px 10px !important;
+}
+tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* 代码/价格高亮 */
+pre, code {
+  border-radius: 6px;
+}
+
+/* 会话中心面板里的强调行 */
+strong {
+  color: #0f172a;
+}

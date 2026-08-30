@@ -1,0 +1,48 @@
+# ========== 敏感信息（绝不提交） ==========
+.env
+.env.local
+*.env
+
+# ========== Python 缓存 / 虚拟环境 ==========
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pylibs/
+.wheels_cache/
+
+# ========== 运行时数据（可重新生成，勿提交） ==========
+data/*.db
+data/tiles/
+data/analyses.json
+data/conversations.json
+data/geocode_cache.json
+data/llm_model.txt
+data/*.json
+!data/.gitkeep
+src/exports/
+.files/
+screenshots/
+!docs/screenshots/
+.chainlit/
+.streamlit/
+
+# 前端运行时状态（每次运行重新生成）
+public/dashboard.json
+public/sidebar.json
+public/conv_page.json
+
+# ========== 大体积 / 杂项 ==========
+*.zip
+*.7z
+*.tar.gz
+*.log
+server.log
+.DS_Store
+Thumbs.db
+
+# ========== 临时文件 ==========
+_*.py
+tmp/
+temp/
