@@ -280,8 +280,11 @@
     '#zl-right .zr-card.mid .val{color:#d97706;}',
     '#zl-right table{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--zl-table-bg);border-radius:10px;overflow:hidden;}',
     '#zl-right table td{padding:7px 9px;border-bottom:1px solid var(--zl-td-bord);}',
+    '#zl-right table td{font-variant-numeric:tabular-nums;}',
     '#zl-right table td.k{color:var(--zl-td-k);width:42%;}',
     '#zl-right table td.v{color:var(--zl-td-v);font-weight:700;text-align:right;}',
+    '#zl-right .zr-cap{font-size:12px;color:var(--zl-sub);text-align:left;padding:0 2px 6px;caption-side:top;}',
+    '#zl-right .zr-bar-fill{font-variant-numeric:tabular-nums;}',
     '#zl-right table tr:last-child td{border-bottom:none;}',
     '#zl-right .zr-bar-row{margin:7px 0;}',
     '#zl-right .zr-bar-label{font-size:13px;color:var(--zl-sub);margin-bottom:3px;}',
@@ -378,6 +381,7 @@
     '.zl-model:hover{border-color:var(--zl-ring);box-shadow:0 2px 8px var(--zl-ring-soft);}',
     '.zl-model span{white-space:nowrap;font-weight:600;color:var(--zl-sub);}',
     '.zl-model select{background:transparent;border:none;color:var(--zl-wb-tx);font-size:12.5px;font-weight:600;outline:none;cursor:pointer;font-family:' + FONT + ';max-width:none;padding:0 2px;}',
+    '.zl-model select:focus-visible{outline:2px solid var(--zl-ring);outline-offset:2px;border-radius:6px;}',
     '.zl-model select option{color:#0f172a;background:#fff;}',
     /* 输入框（composer）整体美化 */
     '[class*="rounded-3xl"][class*="bg-accent"]{border-radius:18px !important;border:1px solid var(--zl-input-bord) !important;',
@@ -462,7 +466,7 @@
     '#zl-settings .zl-set-sub{color:var(--zl-sub);font-size:13.5px;line-height:1.9;}',
     '#zl-settings .zl-set-opt{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}',
     '#zl-settings .zl-set-opt button{padding:11px 20px;border-radius:11px;border:1px solid var(--zl-input-bord);',
-    'background:var(--zl-card-bg);color:var(--zl-wb-tx);font-size:15px;cursor:pointer;transition:all .16s;}',
+    'background:var(--zl-card-bg);color:var(--zl-wb-tx);font-size:15px;cursor:pointer;transition:border-color .16s,background .16s,color .16s;}',
     '#zl-settings .zl-set-opt button:hover{border-color:var(--zl-ring);}',
     '#zl-settings .zl-set-opt button.on{background:var(--zl-accent-grad);color:var(--zl-accent-tx);border-color:transparent;font-weight:700;}',
     '#zl-settings .zl-set-note{font-size:13px;color:var(--zl-sub);margin-top:14px;line-height:1.7;}',
@@ -828,7 +832,7 @@
         '<div class="zl-hist-info" data-open="' + esc(c.id) + '" role="button" tabindex="0" title="点击打开该会话" aria-label="打开会话 ' + esc(c.title) + '">' +
         '<div class="zl-hist-title"><span class="zl-tag ' + (isOk ? 'ok' : 'chat') + '">' + esc(c.mark) + '</span>' + esc(c.title) + score + '</div>' +
         '<div class="zl-hist-ts">' + ico('clock', 'x12') + esc(c.ts) + '</div></div>' +
-        '<button class="zl-del" data-del="' + esc(c.id) + '" title="删除该会话" aria-label="删除会话 ' + esc(c.title) + '">' + ico('trash') + '</button>' +
+        '<button class="zl-del" data-del="' + esc(c.id) + '" type="button" title="删除该会话" aria-label="删除会话 ' + esc(c.title) + '">' + ico('trash') + '</button>' +
         '</div></div>';
     });
     histEl.innerHTML = html;
@@ -1297,7 +1301,8 @@
     h += '<div class="zr-shop">' + esc(d.shop || '对比') + '</div>';
     h += '<div class="zr-sub">' + esc(d.category || '') + '</div>';
     if (c.table && c.table.length) {
-      h += '<div class="zr-sec">全方位对比</div><table>';
+      h += '<div class="zr-sec">全方位对比</div><table>' +
+        '<caption class="zr-cap">各分析结果全方位对比表</caption>';
       c.table.forEach(function (row) {
         h += '<tr><td class="k">' + esc(row[0]) + '</td>';
         for (var k = 1; k < row.length; k++) {
@@ -1309,9 +1314,12 @@
     }
     var dimKeys = c.dims ? Object.keys(c.dims) : [];
     if (dimKeys.length) {
-      h += '<div class="zr-sec">多雷达对比</div><div class="zr-radar">' + radarSVG(dimKeys, dimKeys.map(function (k, di) {
-        return { name: names[di] || '', color: colors[di % colors.length], values: c.dims[k] };
-      })) + '</div><div class="zr-legend">' + names.map(function (nm, k) {
+      // 每个对比对象 = 一条雷达系列：values = 该对象在所有维度上的值
+      var series = names.map(function (nm, di) {
+        return { name: nm, color: colors[di % colors.length],
+                 values: dimKeys.map(function (k) { return c.dims[k][di]; }) };
+      });
+      h += '<div class="zr-sec">多雷达对比</div><div class="zr-radar">' + radarSVG(dimKeys, series) + '</div><div class="zr-legend">' + names.map(function (nm, k) {
         return '<span style="color:' + colors[k % colors.length] + '">■ ' + esc(nm) + '</span>';
       }).join('　') + '</div>';
     }
