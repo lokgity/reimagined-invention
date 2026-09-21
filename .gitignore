@@ -25,7 +25,8 @@ src/exports/
 .files/
 screenshots/
 !docs/screenshots/
-.chainlit/
+.chainlit/*
+!.chainlit/config.toml
 .streamlit/
 
 # 前端运行时状态（每次运行重新生成）
