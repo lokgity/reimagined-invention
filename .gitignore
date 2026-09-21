@@ -46,3 +46,29 @@ Thumbs.db
 _*.py
 tmp/
 temp/
+
+# ========== 临时产物 / 备份 / 中间渲染（2026-09-22 整理，避免污染仓库） ==========
+_*.txt
+_*.log
+_bak_*/
+_ui_shots/
+_oldsite_*/
+docs/方案/_pdfcheck/
+docs/方案/_pdfmeasure.txt
+docs/方案/应用方案-址南针-v*.pdf
+docs/方案/应用方案-址南针-final.pdf
+
+# 运行时数据（每次分析都会重写，不入库）
+public/sim_boards/
+public/last_sim.json
+public/sidebar.json
+public/dashboard.json
+output/
+data/reports/
+*.bak.py
+*.bak
+*.orig
+_bak/
+docs/方案/_bak/
+src/analysis/_bak*/
+_bak*/

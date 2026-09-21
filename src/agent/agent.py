@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-agent.py —— 选址 Agent 对话循环
+agent.py —— 选址领域逻辑层（无状态纯函数）
 =================================
-架构:
-- 意图解析 + 信息抽取: 规则 + LLM 混合（规则保证稳定，LLM 增强理解）
-- 评分: 调用 engine.scoring（确定性、可离线）
-- 解读: LLM 生成推理链（可解释性）
+职责（被 agent_graph.py 复用，Chainlit 是唯一入口）:
+- 口语信息抽取: 品类/租金/地址/客群/堂食外卖/面积/品牌（规则层，保证稳定）
+- 规则兜底解读: LLM 不可用时也能输出合格结论（rule_based_interpret）
+- 地理编码: 高德 API 优先 + 本地 POI 库兜底 + 浙江范围校验 + 磁盘缓存
 
 设计取舍（答辩导向）:
 1. 评分必须确定性（同一输入同一结果），不能因为 LLM 抖动改变分数
 2. 演示稳定 > 花哨：即使 LLM 调用失败，也有基于规则的兜底解读
 3. 所有数据结论可追溯到评分引擎和本地数据库
+
+对话编排（阶段流转/节点路由/LLM 调用）在 agent_graph.py，不在本文件。
 """
 import re
 import json
@@ -18,13 +20,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import get_profile, CATEGORY_PROFILES  # noqa: E402
-from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL  # noqa: E402
-from config import LLM_FALLBACK_API_KEY, LLM_FALLBACK_BASE_URL, LLM_FALLBACK_MODEL  # noqa: E402
-from engine.scoring import score_site  # noqa: E402
-from agent.prompts import build_interpret_prompt  # noqa: E402
-
-CATEGORY_NAMES = list(CATEGORY_PROFILES.keys())
 
 # 常用口语词 -> 品类
 CATEGORY_ALIASES = {
@@ -48,11 +43,15 @@ LOCALITY_PATTERN = re.compile(
     r'五马街|老外滩|天一广场|万达广场|银泰|万象城|大悦城|南湖|东钱湖)'
 )
 RENT_PATTERN = re.compile(
-    r'(?:月租|租金|房租|预算)[^\d]{0,6}'
+    r'(月租|租金|房租|预算)[^\d]{0,6}'
     r'(\d+(?:\.\d+)?)\s*(万|千|k|w|元)?'
     r'(?:(\d+)\s*(百)?)?',  # 支持 "1万5" "2千5" 这种口语
     re.IGNORECASE,
 )
+# "预算"有歧义：既可能是月租，也可能是装修/前期投入。上文出现这些词就不是月租
+_BUDGET_NOT_RENT = ('装修', '装潢', '投入', '加盟', '转让', '设备', '建店', '改造', '前期')
+# 本工具面向 10~100㎡ 小铺，月租到不了 5 万量级；"预算"超过这个数一律当投入
+_RENT_PLAUSIBLE_MAX = 50000
 
 
 # ---------------------------------------------------------------
@@ -66,21 +65,79 @@ def extract_category(text: str):
     return None
 
 
-def extract_rent(text: str):
-    m = RENT_PATTERN.search(text)
-    if not m:
-        return None
-    num = float(m.group(1))
-    unit = (m.group(2) or '').lower()
-    extra = m.group(3)  # "1万5" 里的 "5"
+def _apply_unit(num_s, unit, extra=None) -> float:
+    """把「数字 + 单位 + 口语尾数」换算成元。
+
+    处理三种写法：① 普通单位（万/千/k/w）；② 口语连读 "1万5"（=15000）、
+    "2千5"（=2500）—— 尾数按主单位进位（万级 +千、千级 +百）；
+    ③ 无单位时按元。`extract_rent` 与 `extract_monthly_revenue` 共用，
+    避免两处换算漂移（同一个"1万5"在租金和流水上必须解释成同一个数）。
+    """
+    num = float(num_s)
+    unit = (unit or '').lower()
     if unit in ('千', 'k'):
         num *= 1000
     elif unit in ('万', 'w'):
         num *= 10000
-    # 处理 "1万5" -> 15000, "2千5" -> 2500
     if extra:
         num += float(extra) * (1000 if unit in ('万', 'w') else 100)
-    return int(num)
+    return num
+
+
+def extract_rent(text: str):
+    """提取月租(元)。
+
+    坑（2026-09-14 实测踩到）："装修预算20万"曾被当成月租 20 万，覆盖掉用户先前给的
+    月租 12000，把租金承受力打成 0 分、盈利测算与结论全错。所以"预算"这个触发词必须
+    过闸：上文指向装修/投入就不算月租，金额超出小铺月租量级也不算。
+    明确的"月租/租金/房租"无条件采信（用户改口重报租金要能生效）。
+    """
+    for m in RENT_PATTERN.finditer(text or ''):
+        trigger = m.group(1)
+        num = _apply_unit(m.group(2), m.group(3), m.group(4))
+
+        if trigger == '预算':
+            before = (text or '')[:m.start()][-6:]
+            if any(k in before for k in _BUDGET_NOT_RENT):
+                continue        # 装修预算/前期投入预算 → 不是月租
+            if num > _RENT_PLAUSIBLE_MAX:
+                continue        # "预算20万" 这种量级只能是投入
+        return int(num)
+    return None
+
+
+# 月流水/营业额（已开店诊断用）：与月租是两码事，量级通常更大，且可能按"日"报。
+# 用词与 RENT_PATTERN 不重叠（租金/房租/预算），所以两个抽取器互不干扰。
+REVENUE_PATTERN = re.compile(
+    r'(月流水|月营业额|月营收|月均流水|月销售|月销额|销售额|营业额|营收|流水|月收入)'
+    r'[^\d]{0,6}(\d+(?:\.\d+)?)\s*(万|千|k|w|元)?'
+    r'(?:(\d+)\s*(百)?)?',
+    re.IGNORECASE,
+)
+# "日流水 3000" / "日营业额 1.2万" —— 命中后 ×30 折月。必须先于上面的通用式判断，
+# 否则"日流水3000"里的"流水"会被 REVENUE_PATTERN 当成月流水直接采信（差 30 倍）。
+DAILY_REVENUE_PATTERN = re.compile(
+    r'(?:日均|日|平均每天|一天)[^\d]{0,4}'
+    r'(?:流水|营业额|营收|销售额|卖)\s*(\d+(?:\.\d+)?)\s*(万|千|k|w|元)?',
+    re.IGNORECASE,
+)
+
+
+def extract_monthly_revenue(text: str):
+    """提取**月流水**（元）——已开店诊断的必需输入。
+
+    三种报法都支持：① 月流水/月营业额/营收（直采）；② "日流水 3000"（×30 折月）；
+    ③ "1万5" 这种口语连读（复用 `_apply_unit`，与月租同一套释义）。
+    提取不到返回 None（**绝不猜**：诊断要求真数，宁可追问）。
+    """
+    t = text or ''
+    md = DAILY_REVENUE_PATTERN.search(t)
+    if md:
+        return int(_apply_unit(md.group(1), md.group(2)) * 30)
+    mm = REVENUE_PATTERN.search(t)
+    if mm:
+        return int(_apply_unit(mm.group(2), mm.group(3), mm.group(4)))
+    return None
 
 
 def extract_address(text: str):
@@ -107,17 +164,30 @@ def parse_request(text: str) -> dict:
 # ---------------------------------------------------------------
 def rule_based_interpret(result: dict) -> str:
     r = result
-    lines = [
-        f"【{r['name'] or '该地址'}】总分 {r['total']} —— {r['verdict']}",
-    ]
+    veto = r.get('veto') or {}
+    rl = r.get('rent_limits') or {}
+    head = f"【{r['name'] or '该地址'}】总分 {r['total']} —— {r['verdict']}"
+    if veto.get('触发'):
+        head = (f"【{r['name'] or '该地址'}】位置分 {r['total']}（{veto.get('位置分结论')}）"
+                f" —— 综合结论：{r['verdict']}｜🚫 {veto.get('原因')}")
+    lines = [head]
     for dim, score in r['dims'].items():
         lines.append(f"  {dim}: {score}分")
     e = r['evidence']
     lines.append(f"  证据: 周边竞品 {e['竞品数']} 家，"
+                 f"真Huff捕获份额 {e['捕获份额P']:.1%}，"
                  f"客群引力 {e['客群引力累计']}，"
                  f"最近通勤点 {e['最近通勤点(m)']}米，"
                  f"预估月流水 ¥{e['预估月流水']:,}，"
                  f"租金占流水 {e['租金占流水比']}")
+    if e.get('客单价'):
+        pc = r.get('客单价校正') or {}
+        _x = f"  💲 客单价 ¥{e['客单价']:g}（{e.get('客单价来源', '-')}）"
+        if pc.get('校正倍数'):
+            _x += f"，品类画像 ¥{pc.get('品类画像客单价')}，相差 {pc['校正倍数']} 倍"
+        lines.append(_x)
+        if pc.get('口径'):
+            lines.append(f"     ↳ {pc['口径']}")
     # 水电/盈利测算
     if r.get('utility'):
         u = r['utility']
@@ -126,10 +196,51 @@ def rule_based_interpret(result: dict) -> str:
     if r.get('profit'):
         p = r['profit']
         pb = f"{p['回本周期(月)']}个月" if p['回本周期(月)'] else '无法回本'
-        lines.append(f"  💰 盈利测算: 前期投入 ¥{p['前期投入']:,}（{p['投入来源']}），"
+        lines.append(f"  💰 盈利测算（中性档）: 前期投入 ¥{p['前期投入']:,}（{p['投入来源']}），"
                      f"月人工 ¥{p['月人工']:,}（{p['人数']}人×¥{p['人均月薪']:,}），"
-                     f"月物料 ¥{p['月物料成本']:,}，月固定成本 ¥{p['月固定成本']:,}，"
-                     f"月净利 ¥{p['月净利估算']:,}，回本周期 {pb}，{p['盈亏判断']}")
+                     f"月物料 ¥{p['月物料成本']:,}，月成本合计 ¥{p['月成本合计']:,}，"
+                     f"月净利 {p['月净利估算']:,} 元，回本周期 {pb}，{p['盈亏判断']}")
+        # 单点数字会被当成预测。三档并列才能回答"你这个净利率怎么算的"——
+        # 答案是"取决于商场扣点和产能假设"，把不确定性摊开而不是藏起来。
+        bands = r.get('profit_bands')
+        if bands:
+            seg = []
+            for n in ('乐观', '中性', '保守'):
+                b = bands[n]
+                bpb = f"{b['回本周期(月)']}个月" if b['回本周期(月)'] else '无法回本'
+                seg.append(f"{n} 净利 {b['月净利估算']:,} 元"
+                           f"（净利率 {(b['净利率'] or 0):.0%}、{b['人数']}人、回本 {bpb}）")
+            lines.append('  📊 三档情景区间: ' + ' ｜ '.join(seg))
+            lines.append(f"     ↳ {bands['区间']['结论']}。{bands['区间']['口径']}")
+        # 口径区间：与三档情景**正交**（那三档变成本假设，这一档变需求假设）。
+        # LLM 不可用时这条就是用户唯一能看到的说明，更不能省——否则上面那串
+        # 中性档数字会被原样当成承诺。
+        _cal = r.get('口径区间') or {}
+        _civ = _cal.get('区间') or {}
+        if _civ:
+            seg = []
+            for _t in (_cal.get('档位') or []):
+                _tpb = f"{_t['回本周期(月)']}个月" if _t.get('回本周期(月)') else '难以回本'
+                seg.append(f"{_t['口径']} 流水 ¥{_t['月流水']:,}、净利 ¥{_t['月净利']:,} 元、"
+                           f"回本 {_tpb}")
+            lines.append('  🎯 口径区间（价格-单量弹性未标定）: ' + ' ｜ '.join(seg))
+            lines.append(f"     ↳ {_civ.get('结论')}。{_civ.get('口径')}")
+    # 租金临界点：这是唯一能直接拿去谈判的数字，兜底文案也不能省
+    if rl:
+        be = rl.get('盈亏平衡月租')
+        cap = rl.get('回本达标月租上限')
+        rent_now = r.get('monthly_rent') or 0
+        if be is None:
+            be_txt = '不存在——免租也亏损，问题在客流/成本结构，谈租金救不回来'
+        elif be >= rent_now:
+            be_txt = f'¥{be:,}（当前 ¥{rent_now:,}，安全垫 ¥{be - rent_now:,}）'
+        else:
+            be_txt = f'¥{be:,}（当前 ¥{rent_now:,}，已超出 ¥{rent_now - be:,}）'
+        from engine.scoring import PAYBACK_LIMIT_MONTHS
+        cap_txt = (f'；{PAYBACK_LIMIT_MONTHS}个月回本上限 ¥{cap:,}'
+                   + (f'（比不亏线再低 ¥{be - cap:,}）' if be and cap < be else '') if cap else '')
+        lines.append(f"  🎯 租金临界点: 盈亏平衡月租 {be_txt}{cap_txt}"
+                     f"；免租压力测试 月净利 {rl.get('免租月净利'):,} 元")
     if r['warnings']:
         for w in r['warnings']:
             lines.append(f"  {w}")
@@ -137,75 +248,63 @@ def rule_based_interpret(result: dict) -> str:
     return '\n'.join(lines)
 
 
-# ---------------------------------------------------------------
-# 3. LLM 解读（增强可解释性；主用小米 mimo，失败降级到 DeepSeek，最终降级到规则解读）
-# ---------------------------------------------------------------
-def _call_llm(api_key, base_url, model, system_msg, user_msg, temperature=0.3, timeout=30):
-    """通用 LLM 调用函数"""
-    import urllib.request
-    payload = {
-        'model': model,
-        'messages': [
-            {'role': 'system', 'content': system_msg},
-            {'role': 'user', 'content': user_msg},
-        ],
-        'temperature': temperature,
-    }
-    req = urllib.request.Request(
-        f'{base_url.rstrip("/")}/chat/completions',
-        data=json.dumps(payload).encode('utf-8'),
-        headers={'Content-Type': 'application/json',
-                 'Authorization': f'Bearer {api_key}'},
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
-    return data['choices'][0]['message']['content']
+def _pct(v, digits=1):
+    """百分比格式化；None 返回 '—'（毛利率/净利率在变动成本率≥100% 时为 None）。"""
+    return f'{v:.{digits}%}' if isinstance(v, (int, float)) else '—'
 
 
-def llm_interpret(result: dict) -> str:
-    """LLM 解读评分结果，支持三级降级：小米 mimo -> DeepSeek -> 规则解读"""
-    if not LLM_API_KEY:
-        return rule_based_interpret(result)
+def rule_based_diagnosis(r: dict) -> str:
+    """已开店诊断的**规则兜底文案**（LLM 不可用时用）。
 
-    system_msg = (
-        '你是一位资深商铺选址顾问，服务对象是缺乏商业分析能力的个人创业者。'
-        '你的分析基于 Huff 引力模型（零售引力理论）的评分引擎输出。'
-        '要求：'
-        '1. 用口语化、有说服力的方式向创业者解释选址结论，先给结论再给理由；'
-        '2. 必须引用引擎返回的数据证据（竞品引力比、客群引力、通勤距离、租金占比等），'
-        '   可以通俗解释"引力"概念（如"离地铁口越近、周边匹配客群越密集，得分越高"）；'
-        '3. 若引擎提供了水电成本和盈利测算（utility/profit 字段），必须解读：'
-        '   - 月水电成本是否合理，占流水比例'
-        '   - 月净利估算、回本周期是否可接受'
-        '   - 结合租金给出盈亏风险的实话实说判断；'
-        '4. 如实转达所有风险警告，帮用户避坑；'
-        '5. 最后必须附局限声明：基于公开POI数据，不含真实人流量与成交租金，'
-        '   水电价格为参考标准，建议现场复核；'
-        '6. 严禁编造引擎数据之外的任何数字。'
-    )
-    user_msg = build_interpret_prompt(json.dumps(result, ensure_ascii=False))
+    与 `rule_based_interpret` 的分工：那个解读"选址预估"，这个只排版"已开店拆解"。
+    结论本身由引擎 `store_diagnosis.diagnose_existing_store` 给出（`诊断` 字段是
+    有依据的判断），本函数**不新增任何判断**，只把数字与结论摆清楚、并原样带上局限。
+    """
+    inp = r.get('输入') or {}
+    cost = r.get('成本拆解') or {}
+    brand = r.get('品牌') or '自创/未指定品牌'
+    lines = [f"【已开店诊断】{r.get('品类') or '—'} · {brand}"
+             + (f"（{r.get('情景')}档）" if r.get('情景') else '')]
 
-    # 主用: 小米 mimo
-    try:
-        return _call_llm(LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, system_msg, user_msg)
-    except Exception as e1:
-        pass  # 主用失败，尝试备用
+    lines.append(f"  📥 实际月流水 ¥{inp.get('实际月流水', 0):,.0f}　"
+                 f"月租金 ¥{inp.get('实际月租金', 0):,.0f}　"
+                 f"{inp.get('面积', '—')}㎡　{inp.get('人数', '—')}人")
 
-    # 备用: DeepSeek
-    if LLM_FALLBACK_API_KEY:
-        try:
-            return _call_llm(LLM_FALLBACK_API_KEY, LLM_FALLBACK_BASE_URL, LLM_FALLBACK_MODEL, system_msg, user_msg)
-        except Exception as e2:
-            pass  # 备用也失败，降级到规则解读
+    # 三种毛利口径并列 —— 只给一个必然误导（口径定义见 store_diagnosis.py）
+    lines.append(f"  💰 毛利率 {_pct(r.get('毛利率'))}（产品口径：扣物料与损耗）"
+                 f"｜外卖抽成占流水 {_pct(r.get('外卖抽成占流水比'))}"
+                 f"｜扣渠道后 {_pct(r.get('扣渠道后毛利率'))}"
+                 f"｜净利率 {_pct(r.get('净利率'))}")
+    lines.append(f"     ↳ {r.get('毛利率口径') or ''}")
 
-    # 最终兜底: 规则解读
-    return rule_based_interpret(result)
+    _money = [(k, v) for k, v in cost.items() if isinstance(v, (int, float))]
+    if _money:
+        lines.append('  📋 成本拆解：' + '　'.join(f'{k} ¥{v:,.0f}' for k, v in _money))
+
+    if r.get('盈亏平衡月流水') is not None:
+        lines.append(f"  🎯 盈亏平衡月流水 ¥{r['盈亏平衡月流水']:,}"
+                     f"（安全边际 {_pct(r.get('安全边际率'))}，"
+                     f"即还能跌 ¥{r.get('安全边际额', 0):,}/月）")
+    if r.get('租金余量') is not None:
+        lines.append(f"  🏠 盈亏平衡月租 ¥{r['盈亏平衡月租']:,}"
+                     f"；租金余量 ¥{r['租金余量']:,}/月")
+
+    bench = r.get('品牌对标')
+    if bench:
+        lines.append(f"  📊 品牌公开基准 {bench.get('你/基准')}×"
+                     f"（基准 ¥{bench.get('基准月流水', 0):,}/月，"
+                     f"期间 {bench.get('期间')}，{bench.get('来源')}）")
+
+    for t in (r.get('诊断') or []):
+        lines.append(f"  · {t}")
+    for w in (r.get('局限') or []):
+        lines.append(f"  ⚠️ {w}")
+    return '\n'.join(lines)
 
 
 # ---------------------------------------------------------------
-# 4. 对话主流程
+# 3. 口语信息抽取（客群定位 / 堂食外卖 / 面积 / 品牌）
 # ---------------------------------------------------------------
-# 客群定位 / 堂食外卖 / 面积 的口语词提取
 GUEST_ALIASES = {
     '学生': ['学生', '大学生', '校园', '学校客群'],
     '白领': ['白领', '上班族', '写字楼客群', '办公'],
@@ -239,26 +338,17 @@ def extract_area(text: str):
     return None
 
 
-def extract_budget(text: str):
-    """提取装修预算(元): 需含"装修/装潢/预算"等词, 避免误匹配月租"""
-    if not any(k in text for k in ['装修', '装潢', '预算', '投入', '装修款']):
-        return None
-    # 优先"XX万装修/装修预算XX万/预算XX万"
-    m = re.search(r'(?:装修|装潢|预算|投入)[^\d]{0,6}(\d+(?:\.\d+)?)\s*(万|w|千|k)?', text)
-    if not m:
-        # 反向: "XX万装修"
-        m = re.search(r'(\d+(?:\.\d+)?)\s*(万|w)\s*(?:装修|装潢)', text)
-    if not m:
-        return None
-    num = float(m.group(1))
-    unit = (m.group(2) or '').lower()
-    if unit in ('万', 'w'):
-        num *= 10000
-    elif unit in ('千', 'k'):
-        num *= 1000
-    else:
-        num *= 10000  # 裸数字视为万(装修预算量级)
-    return int(num)
+def extract_brand(text: str):
+    """从用户文本识别加盟品牌（复用引擎品牌关键词表）。
+    返回品牌名 / '自创品牌' / None。"""
+    from engine.brands import BRAND_KEYWORDS
+    if any(k in text for k in ['自创', '自己创', '自己的牌', '自家牌', '不加盟', '个体', '杂牌']):
+        return '自创品牌'
+    for brand, kws in BRAND_KEYWORDS.items():
+        for kw in kws:
+            if kw in text:
+                return brand
+    return None
 
 
 def _clean_area(area):
@@ -273,7 +363,12 @@ def _clean_area(area):
         '奶茶店', '甜品店', '早餐店', '便利店', '茶饮店',
         '商铺', '店铺', '铺子', '店面', '门面',
         '附近', '周边', '一带', '地段', '区域',
-        '想去开', '想开', '去看看', '去看看铺子', '开个', '开一家',
+        # 2026-09-17：口语里的"开店意向"尾巴也要剥掉。
+        # 否则「我想在滨江开店」抽出的地址是「滨江开店」，进了 search_rental
+        # 会被当成 area_filter='滨江开店' → 58 一条都匹配不上（实测踩到）。
+        '做点小生意', '做点生意', '做生意',
+        '开一家店', '开一个店', '开个店', '开家店', '开一间店', '开一家', '开一间',
+        '想去开', '想开', '去看看', '去看看铺子', '开个', '开店',
     ]
     for suffix in suffixes:
         if t.endswith(suffix):
@@ -286,496 +381,8 @@ def _clean_area(area):
     return t or area
 
 
-def _build_comparison(current, history):
-    """生成当前商铺与之前分析商铺的对比文本"""
-    lines = ['📊 **与之前分析的商铺对比：**', '']
-    # 表头
-    lines.append('| 商铺 | 总分 | 客群 | 竞争 | 交通 | 租金 | 结论 |')
-    lines.append('|---|---|---|---|---|---|---|')
-    for h in history:
-        d = h['dims']
-        lines.append(f"| {h['name'][:12]} | {h['total']} | {d['客群匹配度']} | "
-                     f"{d['竞争压力']} | {d['交通可达性']} | {d['租金承受力']} | {h['verdict']} |")
-    d = current['dims']
-    lines.append(f"| **{current['name'][:12]}** | **{current['total']}** | {d['客群匹配度']} | "
-                 f"{d['竞争压力']} | {d['交通可达性']} | {d['租金承受力']} | **{current['verdict']}** |")
-    # 结论建议
-    best = min(history, key=lambda h: -h['total'])
-    if current['total'] > best['total']:
-        lines.append(f"\n✅ 当前商铺 **{current['total']}分** 高于之前最好的 "
-                     f"「{best['name'][:10]}」({best['total']}分)，可作为优先考虑。")
-    else:
-        lines.append(f"\nℹ️ 当前商铺 **{current['total']}分**，之前「{best['name'][:10]}」"
-                     f"({best['total']}分) 评分更高，可对比权衡。")
-    return '\n'.join(lines)
-
-
-class SiteAgent:
-    """有状态的选址顾问。分阶段引导：
-    phase='intro'    -> 问有无意向商铺
-    phase='have_shop'-> 有商铺: 收集面积/租金, 进入分析
-    phase='no_shop'  -> 无商铺: 找区域, 搜出租商铺候选, 用户选择
-    phase='analysis' -> 分析完成/持续对话
-    """
-
-    def __init__(self):
-        self.state = {
-            'phase': 'intro',
-            'category': None, 'rent': None, 'addresses': [],
-            'guest': None, 'mode': None, 'area': None,
-            'shop_candidates': [],   # 无商铺分支的候选列表
-            'awaiting_choice': False,  # 等待用户从候选里选择
-            'analyzed_history': [],  # 已分析结果列表(用于前后对比)
-        }
-
-    def ask(self, user_text: str) -> str:
-        text = (user_text or '').strip()
-
-        # ---- 用户想换/再看其他商铺(任意阶段) -> 回到推荐环节 ----
-        if self.state['phase'] != 'intro' and self._wants_more_shops(text):
-            return self._re_recommend(text)
-
-        # ---- 阶段1: 引导 ----
-        if self.state['phase'] == 'intro':
-            return self._phase_intro(text)
-
-        # ---- 无商铺: 等待从候选中选择（优先于 no_shop, 因为选择时 phase 仍是 no_shop）----
-        if self.state['awaiting_choice']:
-            return self._handle_choice(text)
-
-        # ---- 无商铺: 用户给区域 -> 搜出租候选 ----
-        if self.state['phase'] == 'no_shop':
-            return self._handle_no_shop_area(text)
-
-        # ---- 常规信息收集(有商铺/后续追问) ----
-        return self._collect_info(text)
-
-    # -----------------------------------------------------------
-    def _wants_more_shops(self, text):
-        """判断用户是否想继续看其他商铺(而非分析新地址)"""
-        # 若用户给了新地址/新品类, 视为新分析, 不是换商铺
-        if parse_request(text).get('address'):
-            return False
-        if parse_request(text).get('category'):
-            # 有品类但无地址: 可能是补信息, 不拦截
-            if '换' not in text and '再推荐' not in text and '别的' not in text:
-                return False
-        for kw in ['换一个', '换家', '再推荐', '再找', '其他的', '别的', '还有其他',
-                   '还有吗', '再来', '重新推荐', '另选', '换别']:
-            if kw in text:
-                return True
-        # "再看看"仅在无新地址时算换商铺
-        if '再看看' in text and not parse_request(text).get('address'):
-            return True
-        return False
-
-    def _re_recommend(self, text):
-        """回到推荐环节: 若之前有候选列表, 重新展示; 否则重新问区域"""
-        # 保留历史分析用于后续对比
-        self.state['phase'] = 'no_shop'
-        self.state['awaiting_choice'] = False
-        # 用户是否给了新区域(如"换到滨江区看看")
-        new_area = extract_address(text) or (
-            re.search(r'(杭州|宁波|温州|嘉兴|湖州|绍兴|金华|衢州|舟山|台州|丽水)[\u4e00-\u9fa5]{0,10}', text))
-        # 如果还有旧候选且用户没给新区域, 直接重新展示旧候选
-        if self.state.get('shop_candidates') and not new_area:
-            cands = self.state['shop_candidates']
-            self.state['awaiting_choice'] = True
-            lines = ['好的，为你重新展示候选商铺：', '']
-            for i, c in enumerate(cands, 1):
-                info = []
-                if c.get('area'):
-                    info.append(f"{c['area']}㎡")
-                if c.get('price'):
-                    info.append(f"{c['price']:.0f}元/月")
-                extra = f"（{'，'.join(info)}）" if info else ''
-                show_addr = c.get('real_addr') or c.get('address') or ''
-                lines.append(f"**{i}. {c['name']}**  {extra}")
-                lines.append(f"    🧭 {show_addr}")
-                lines.append('')
-            lines.append('回复序号选择；或告诉我其他区域（如"滨江区"）。')
-            return '\n'.join(lines)
-        # 用户给了新区域或没有旧候选: 重新搜索
-        return self._handle_no_shop_area(text)
-
-    # -----------------------------------------------------------
-    def _phase_intro(self, text):
-        """阶段1: 判断有无意向商铺"""
-        has_shop = self._detect_has_shop(text)
-        if has_shop is None:
-            return ('👋 你好！我是你的选址顾问。先确认一下：'
-                    '**你有具体看中的商铺了吗？**\n\n'
-                    '- 有的话，告诉我商铺位置（如"杭州武林广场杭州大厦B座"）\n'
-                    '- 还没有的话，告诉我你想开在哪个区域（如"杭州滨江"）')
-        if has_shop:
-            self.state['phase'] = 'have_shop'
-            # 用户可能已带位置/面积/租金
-            return self._collect_info(text)
-        else:
-            self.state['phase'] = 'no_shop'
-            # 用户可能已带区域(如"帮我找杭州滨江的"), 直接搜; 否则追问区域
-            return self._handle_no_shop_area(text)
-
-    def _detect_has_shop(self, text):
-        """判断用户是否有具体商铺: 有/没有/不确定(返回None继续追问)"""
-        t = text
-        # 先排除否定词（"还没有""没有""没看中"）
-        for kw in ['还没有', '没有', '还没', '没看中', '不确定', '没找到']:
-            if kw in t:
-                return False
-        # 明确"有"的表述（排除"有没有"这种疑问）
-        for kw in ['有没有', '有吗', '有没']:
-            if kw in t:
-                return None
-        for kw in ['看中了', '看中', '找到了', '找好了', '看好了', '有意向', '目标商铺',
-                   '具体商铺', '看了一家', '有一个', '有具体', '有看']:
-            if kw in t:
-                return True
-        # 明确的"找/推荐"请求
-        for kw in ['帮我找', '帮我查', '推荐', '帮我看看', '帮我找找', '帮我搜']:
-            if kw in t:
-                return False
-        # "想在XX附近/想在XX开/XX附近有没有" 这类=想找区域, 没有具体商铺
-        for kw in ['附近', '周边', '一带', '区域', '地段', '哪里', '在哪', '哪些地方']:
-            if kw in t:
-                return False
-        # 若只提到"区域/地标 + 品类"(无具体铺位), 视为找区域/找商铺, 不问租金
-        # (如"想在杭州龙翔桥地铁站附近开奶茶店""开奶茶店杭州滨江")
-        info = parse_request(t)
-        if info.get('category') or info.get('address'):
-            # 有具体商铺特征的（大厦X座/号铺/铺位/门店/店面/楼层）才算"有"
-            addr = info.get('address') or ''
-            for kw in ['座', '号', '铺位', '门店', '店面', '层']:
-                if kw in addr:
-                    return True
-            return False
-        return None
-
-    # -----------------------------------------------------------
-    def _collect_info(self, text):
-        """收集品类/地址/租金/面积等, 齐全则分析。
-        若用户输入不含任何可提取的信息(且已有分析上下文), 视为自由提问,
-        交给 LLM 以顾问身份回答。"""
-        info = parse_request(text)
-        got_new = False
-        if info['category']:
-            self.state['category'] = info['category']
-            got_new = True
-        if info['rent']:
-            self.state['rent'] = info['rent']
-            got_new = True
-        if info['address']:
-            self.state['addresses'].append(info['address'])
-            # 用户给了新地址: 清除旧的候选坐标(避免回落错位置)
-            self.state['pending_coord'] = None
-            got_new = True
-        if extract_guest(text):
-            self.state['guest'] = extract_guest(text)
-            got_new = True
-        if extract_mode(text):
-            self.state['mode'] = extract_mode(text)
-            got_new = True
-        if extract_area(text):
-            self.state['area'] = extract_area(text)
-            got_new = True
-        if extract_budget(text):
-            self.state['budget'] = extract_budget(text)
-            got_new = True
-
-        # 已有分析上下文 + 用户没给新信息 -> 自由问答
-        if not got_new and self.state.get('addresses') and self.state.get('category'):
-            return self._free_chat(text)
-
-        missing = []
-        if not self.state['category']:
-            missing.append('品类（奶茶/甜品/早餐/便利店）')
-        if not self.state['addresses']:
-            missing.append('商铺位置或地址')
-        # 地址来自候选(pending_coord)时, 租金缺失不阻塞, 用默认继续
-        from_candidate = bool(self.state.get('pending_coord'))
-        if self.state['rent'] is None and not from_candidate:
-            missing.append('月租金')
-        if missing:
-            return f'还需要你告诉我：{"、".join(missing[:2])}（一次说全更省事~）'
-        self.state['phase'] = 'analysis'
-        result = self.analyze()
-        # 面积已知但没给装修预算 -> 提示(不阻塞)
-        if self.state.get('area') and not self.state.get('budget'):
-            result += ('\n\n💡 补充**装修预算**（如"装修预算10万"），'
-                       '可评估装修档次对店铺吸引力的影响。')
-        return result
-
-    # -----------------------------------------------------------
-    def _free_chat(self, text):
-        """自由问答: 用户问改进建议/客流/运营等, 用 LLM 结合分析上下文回答
-        支持三级降级: 小米 mimo -> DeepSeek -> 规则解读"""
-        # 重新跑一次当前地址的评分, 作为上下文
-        context = []
-        for addr in self.state['addresses']:
-            lng, lat = geocode(addr)
-            if lng is None and self.state.get('pending_coord'):
-                lng, lat = self.state['pending_coord']
-            if lng is None:
-                continue
-            try:
-                r = score_site(self.state['category'], lng, lat,
-                               self.state['rent'] or 8000, name=addr,
-                               area_m2=self.state.get('area'))
-                context.append(json.dumps(r, ensure_ascii=False))
-            except Exception:
-                continue
-        if not context:
-            return self.analyze()
-        # 用 LLM 回答（三级降级）
-        sys_prompt = (
-            '你是"浙里选址"的选址顾问。用户已经完成了一个商铺的选址分析，'
-            '现在问你关于该商铺的改进建议、周边客流、运营策略等问题。'
-            '以下是该商铺的评分数据（JSON）：\n' + '\n'.join(context) + '\n\n'
-            '请结合这些数据，用口语化、专业、有建设性的方式回答用户的问题。'
-            '涉及数据时必须引用上面 JSON 里的真实数值，不要编造。'
-            '如果问题与选址无关（如闲聊），正常友好回答即可。'
-        )
-        # 主用: 小米 mimo
-        try:
-            return _call_llm(LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, sys_prompt, text, temperature=0.5, timeout=40)
-        except Exception:
-            pass
-        # 备用: DeepSeek
-        if LLM_FALLBACK_API_KEY:
-            try:
-                return _call_llm(LLM_FALLBACK_API_KEY, LLM_FALLBACK_BASE_URL, LLM_FALLBACK_MODEL, sys_prompt, text, temperature=0.5, timeout=40)
-            except Exception:
-                pass
-        # 兜底: 规则解读
-        return rule_based_interpret(context[0] if context else {})
-
-    # -----------------------------------------------------------
-    def _search_rental_shops(self, area, limit=8):
-        """搜索指定区域候选商铺（混合方案）:
-        1. 优先 58 同城真实出租数据（名称/面积/租金, Playwright抓取）
-        2. 不足时用高德"商铺出租/商圈"POI 补足
-        只保留浙江省范围内候选。"""
-        from data.query import haversine
-        candidates = []
-        seen = set()
-        target_lng, target_lat = geocode(area)
-        if target_lng is None:
-            return []
-
-        def _add_candidate(name, address, lng, lat, source, area=None, price=None, precise=None,
-                           real_addr=None):
-            key = (name, round(lng, 4), round(lat, 4))
-            if key in seen:
-                return
-            seen.add(key)
-            candidates.append({
-                'name': name, 'address': address,
-                'lng': lng, 'lat': lat, 'source': source,
-                'area': area, 'price': price, 'precise': precise,
-                'real_addr': real_addr,
-            })
-
-        # 第1轮: 58同城真实出租数据（只抓一次; 精确 geocode 设预算, 省配额）
-        try:
-            from agent.rental58 import fetch_shops, CITY_CODES
-            city = next((c for c in CITY_CODES if c in area), None)
-            if city:
-                # 区域过滤词: 去掉城市名(如"杭州滨江"→"滨江"; "杭州下沙"→"下沙")
-                area_filter = area
-                for c in CITY_CODES:
-                    if area_filter.startswith(c):
-                        area_filter = area_filter[len(c):]
-                        break
-                shops = fetch_shops(city, limit=limit, area_filter=area_filter or None)
-                precise_budget = 4  # 精确 geocode 预算(次), 超出回落区域中心
-                for s in shops:
-                    # 58条目无坐标: 优先从 loc 提取"XX路XX号"定位(预算内),
-                    # 否则直接回落区域中心(0 次额外 API)
-                    lng, lat, precise = None, None, False
-                    loc_text = (s.get('loc') or '').replace(' ', '')
-                    m_addr = re.search(r'([\u4e00-\u9fa5]{1,10}(?:路|街|道|巷|弄|大道)[\u4e00-\u9fa5A-Za-z0-9]*\d*号?)', loc_text)
-                    if m_addr and precise_budget > 0:
-                        lng, lat = geocode(f'{city}{m_addr.group(1)}')
-                        if lng:
-                            precise_budget -= 1
-                            precise = True
-                    if lng is None and precise_budget > 0:
-                        loc_parts = loc_text.split('-')
-                        if len(loc_parts) >= 2:
-                            street = loc_parts[-1]
-                            if street and street not in ('空置中', '经营中') and '宁波' not in street:
-                                lng, lat = geocode(f'{city}{street}')
-                                if lng:
-                                    precise_budget -= 1
-                    if lng is None:
-                        lng, lat = target_lng, target_lat  # 0次API: 回落区域中心
-                    if not _in_zhejiang(lng, lat):
-                        continue
-                    if haversine(target_lng, target_lat, lng, lat) > 30000:
-                        continue
-                    real_addr = m_addr.group(1) if m_addr else None
-                    _add_candidate(s['title'], s['loc'] or area, lng, lat,
-                                   '58同城(在租商铺)', area=s['area'], price=s['price'],
-                                   precise=precise, real_addr=real_addr)
-                    if len(candidates) >= limit:
-                        return candidates
-        except Exception:
-            pass
-
-        # 第2轮: 高德"商铺出租" POI 兜底（候选太少时, 只搜 1 词 × 1 页）
-        if len(candidates) < 3:
-            from data.fetch_poi import search_poi
-            for kw in ['商铺出租']:
-                try:
-                    rows, _ = search_poi(kw, area, max_pages=1)
-                except Exception:
-                    continue
-                for r in rows:
-                    lng, lat = r['lng'], r['lat']
-                    if not _in_zhejiang(lng, lat):
-                        continue
-                    if haversine(target_lng, target_lat, lng, lat) > 30000:
-                        continue
-                    _add_candidate(r['name'], r['address'], lng, lat,
-                                   '高德POI(商铺出租/招商信息)')
-                    if len(candidates) >= limit:
-                        return candidates
-
-        # 第3轮: 商圈/商业楼宇 POI 兜底（仍不足且候选<3 时, 只搜 1 词 × 1 页）
-        if len(candidates) < 3:
-            from data.fetch_poi import search_poi
-            for kw in ['购物中心']:
-                try:
-                    rows, _ = search_poi(kw, area, max_pages=1)
-                except Exception:
-                    continue
-                for r in rows:
-                    lng, lat = r['lng'], r['lat']
-                    if not _in_zhejiang(lng, lat):
-                        continue
-                    if haversine(target_lng, target_lat, lng, lat) > 5000:
-                        continue
-                    _add_candidate(r['name'], r['address'], lng, lat,
-                                   '高德POI(商圈/商业楼宇)')
-                    if len(candidates) >= limit:
-                        return candidates
-        return candidates
-
-    def _handle_no_shop_area(self, text):
-        """无商铺分支: 解析区域, 搜索候选"""
-        # 区域: 城市+区/地名
-        area = extract_address(text)
-        if area is None:
-            # 尝试匹配"区域"词
-            m = re.search(r'(杭州|宁波|温州|嘉兴|湖州|绍兴|金华|衢州|舟山|台州|丽水)[\u4e00-\u9fa5]{0,10}', text)
-            area = m.group(0) if m else None
-        if area is None:
-            return '请告诉我具体区域，比如"杭州滨江区"或"宁波鄞州区"'
-        # 清洗区域: 去掉"的商铺/商铺/附近/周边/一带"等后缀
-        area = _clean_area(area)
-        candidates = self._search_rental_shops(area)
-        if not candidates:
-            return (f'在「{area}」暂未搜到高德收录的商铺出租/招商信息。'
-                    '建议换个区域，或告诉我具体商铺位置直接分析。')
-        self.state['shop_candidates'] = candidates
-        self.state['awaiting_choice'] = True
-        lines = [f'在「{area}」为你找到以下候选商铺（实时抓取）：', '']
-        for i, c in enumerate(candidates, 1):
-            tag = '在租' if '58' in c['source'] else ('出租信息' if '出租' in c['source'] else '商圈位置')
-            info = []
-            if c.get('area'):
-                info.append(f"{c['area']}㎡")
-            if c.get('price'):
-                info.append(f"{c['price']:.0f}元/月")
-            extra = f"（{'，'.join(info)}）" if info else ''
-            # 真实地址优先(地图定位的), 否则用平台文本
-            show_addr = c.get('real_addr') or c.get('address') or area
-            lines.append(f"**{i}. {c['name']}**  {tag}{extra}")
-            lines.append(f"    🧭 地址：{show_addr}")
-            if not c.get('real_addr'):
-                lines.append(f"    ℹ️ 平台描述：{c.get('address', '')[:50]}")
-            lines.append('')  # 每条候选之间空行, 避免挤在一起
-        lines.append('回复序号（如"选1"）选择想分析的商铺；也可以告诉我其他位置。')
-        return '\n'.join(lines)
-
-    def _handle_choice(self, text):
-        """处理用户从候选列表中的选择"""
-        m = re.search(r'选\s*(\d+)|(\d+)\s*号?', text)
-        if m:
-            idx = int(m.group(1) or m.group(2)) - 1
-            cands = self.state['shop_candidates']
-            if 0 <= idx < len(cands):
-                c = cands[idx]
-                self.state['addresses'].append(c['name'])
-                self.state['pending_coord'] = (c['lng'], c['lat'])
-                self.state['awaiting_choice'] = False
-                self.state['phase'] = 'have_shop'
-                # 58 候选自带面积/租金, 直接填入
-                filled = []
-                if c.get('area'):
-                    self.state['area'] = c['area']
-                    filled.append(f"面积{c['area']}㎡")
-                if c.get('price'):
-                    self.state['rent'] = c['price']
-                    filled.append(f"租金{c['price']:.0f}元/月")
-                else:
-                    # 平台无标价: 清掉旧租金, 分析时用默认, 避免沿用上一个铺子的租金
-                    self.state['rent'] = None
-                msg = f'已选：「{c["name"]}」（{c["address"]}）。'
-                if filled:
-                    msg += f'\n已按平台信息填入：{"、".join(filled)}（可在对话中修正）。'
-                if c.get('precise') is False:
-                    msg += ('\n⚠️ 该商铺仅有区域级定位（平台未提供精确坐标），'
-                            '**分析将基于所在区域进行**。若知道具体门牌/路名，'
-                            '可补充（如"滨江区长河路128号"）以获得精确分析。')
-                msg += ('\n你的**品类**是？（如"奶茶"）'
-                        '\n也可一并告诉我：**装修预算**（如"装修预算10万"）')
-                return msg
-            return '序号无效，请重新选择（如"选1"）。'
-        # 用户可能直接给了新信息（如品类/租金）
-        return self._collect_info(text)
-
-    def analyze(self) -> str:
-        cat = self.state['category']
-        rent = self.state['rent'] or 8000  # 未给预算时用默认，并注明
-        area = self.state['area']
-        outputs = []
-        new_results = []
-        for addr in self.state['addresses']:
-            lng, lat = geocode(addr)
-            # 无商铺分支选中的: 用已存坐标
-            if lng is None and self.state.get('pending_coord'):
-                lng, lat = self.state['pending_coord']
-            if lng is None:
-                outputs.append(f'「{addr}」暂无法定位到坐标，请确认地址格式（如"杭州市西湖区文三路"）。')
-                continue
-            result = score_site(cat, lng, lat, rent, name=addr, area_m2=area,
-                                budget=self.state.get('budget'))
-            new_results.append(result)
-            # 与历史分析对比(如有)
-            if self.state['analyzed_history']:
-                outputs.append(_build_comparison(result, self.state['analyzed_history']))
-            outputs.append(llm_interpret(result))
-        # 保存本次分析到历史(用于后续对比, 同名去重)
-        for r in new_results:
-            exist = any(h['name'] == r['name'] and h['lng'] == r['lng']
-                        for h in self.state['analyzed_history'])
-            if not exist:
-                self.state['analyzed_history'].append({
-                    'name': r['name'], 'total': r['total'], 'verdict': r['verdict'],
-                    'dims': r['dims'], 'lng': r['lng'], 'lat': r['lat'],
-                    'area_m2': r.get('area_m2'), 'evidence': r['evidence'],
-                })
-        if rent is None and self.state['rent'] is None:
-            outputs.append('（注：你未提供月租金，暂按默认 ¥8000 测算，可在对话中补充）')
-        if area is None:
-            outputs.append('（注：你未提供商铺面积，暂未测算水电成本与盈利，可补充面积获得完整测算）')
-        self.state['phase'] = 'analysis'
-        return '\n\n'.join(outputs)
-
-
 # ---------------------------------------------------------------
-# 5. 地理编码（高德 API 优先 + 本地库兜底 + 浙江范围校验）
+# 4. 地理编码（高德 API 优先 + 本地库兜底 + 浙江范围校验）
 # ---------------------------------------------------------------
 # 浙江省边界近似范围（用于校验解析结果是否落在浙江）
 ZJ_BOUNDS = {'lng': (118.0, 123.5), 'lat': (27.0, 31.5)}
@@ -956,21 +563,3 @@ def _district_business_center(addr):
     return None
 
 
-def demo():
-    """命令行演示"""
-    agent = SiteAgent()
-    print('=== 浙江商铺选址顾问（演示模式）===')
-    print('提示：说清"品类+地址+预算"，如：想在杭州西湖区文三路开奶茶店，月租8000')
-    print('输入 q 退出\n')
-    while True:
-        try:
-            text = input('你: ').strip()
-        except (EOFError, KeyboardInterrupt):
-            break
-        if text.lower() in ('q', 'quit', 'exit'):
-            break
-        print('顾问:', agent.ask(text), '\n')
-
-
-if __name__ == '__main__':
-    demo()

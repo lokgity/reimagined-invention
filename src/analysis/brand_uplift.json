@@ -1,0 +1,278 @@
+{
+  "version": 2,
+  "method": "brand_uplift_within_district",
+  "note": "锚点不按品牌标定（不可辨识）；品牌通过 own_S 与 uplift（同商圈内相对溢价）进入引擎。uplift 只作用于流水估算的品牌调整，不改变 Huff 结构。",
+  "global_": {
+    "REF_DP": 4.8215,
+    "P_REF": 0.6137,
+    "P_REF_unadj": 0.6024,
+    "n_total": 83,
+    "n_used": 72
+  },
+  "district_median_DP": {
+    "宁波天一广场": 7.565,
+    "杭州湖滨in77": 4.141,
+    "海宁银泰商圈": 2.0525
+  },
+  "shrink_K": 5.0,
+  "min_n_uplift": 3,
+  "uplift_clamp": [
+    0.8,
+    1.25
+  ],
+  "anchor_by_brand": {
+    "REF_DP": false,
+    "P_REF": false,
+    "reason": "identifiability_failure: district R2=0.6946 >> brand R2=0.0795"
+  },
+  "brands": {
+    "蜜雪冰城": {
+      "n": 13,
+      "uplift_raw": 1.0319,
+      "uplift": 1.023,
+      "weight": 0.7222,
+      "reliable": true,
+      "own_S": 2.5
+    },
+    "个体/杂牌": {
+      "n": 6,
+      "uplift_raw": 0.719,
+      "uplift": 0.8467,
+      "weight": 0.5455,
+      "reliable": true,
+      "own_S": 1.0
+    },
+    "喜茶": {
+      "n": 5,
+      "uplift_raw": 0.8434,
+      "uplift": 0.9217,
+      "weight": 0.5,
+      "reliable": true,
+      "own_S": 2.0
+    },
+    "LINLEE": {
+      "n": 4,
+      "uplift_raw": 1.042,
+      "uplift": 1.0187,
+      "weight": 0.4444,
+      "reliable": true,
+      "own_S": 1.5
+    },
+    "茶百道": {
+      "n": 4,
+      "uplift_raw": 1.0818,
+      "uplift": 1.0363,
+      "weight": 0.4444,
+      "reliable": true,
+      "own_S": 1.8
+    },
+    "沪上阿姨": {
+      "n": 4,
+      "uplift_raw": 1.0659,
+      "uplift": 1.0293,
+      "weight": 0.4444,
+      "reliable": true,
+      "own_S": 1.8
+    },
+    "CoCo": {
+      "n": 4,
+      "uplift_raw": 1.092,
+      "uplift": 1.0409,
+      "weight": 0.4444,
+      "reliable": true,
+      "own_S": 1.8
+    },
+    "霸王茶姬": {
+      "n": 4,
+      "uplift_raw": 1.1525,
+      "uplift": 1.0678,
+      "weight": 0.4444,
+      "reliable": true,
+      "own_S": 2.0
+    },
+    "茉莉奶白": {
+      "n": 3,
+      "uplift_raw": 0.8766,
+      "uplift": 0.9537,
+      "weight": 0.375,
+      "reliable": true,
+      "own_S": 1.5
+    },
+    "麦记牛奶": {
+      "n": 2,
+      "uplift_raw": 0.9857,
+      "uplift": 0.9959,
+      "weight": 0.2857,
+      "reliable": false,
+      "own_S": 1.4
+    },
+    "乐乐茶": {
+      "n": 2,
+      "uplift_raw": 1.0782,
+      "uplift": 1.0224,
+      "weight": 0.2857,
+      "reliable": false,
+      "own_S": 1.6
+    },
+    "裕莲茶楼": {
+      "n": 2,
+      "uplift_raw": 0.9263,
+      "uplift": 0.979,
+      "weight": 0.2857,
+      "reliable": false,
+      "own_S": 1.5
+    },
+    "奈雪": {
+      "n": 1,
+      "uplift_raw": 0.7866,
+      "uplift": 0.9644,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.8
+    },
+    "茉酸奶": {
+      "n": 1,
+      "uplift_raw": 0.81,
+      "uplift": 0.9683,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.6
+    },
+    "春莱": {
+      "n": 1,
+      "uplift_raw": 0.6968,
+      "uplift": 0.9495,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.4
+    },
+    "柠季": {
+      "n": 1,
+      "uplift_raw": 0.4912,
+      "uplift": 0.9152,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.0
+    },
+    "贡茶": {
+      "n": 1,
+      "uplift_raw": 1.7191,
+      "uplift": 1.1199,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.4
+    },
+    "宝圆圆": {
+      "n": 1,
+      "uplift_raw": 1.051,
+      "uplift": 1.0085,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.3
+    },
+    "就是柠": {
+      "n": 1,
+      "uplift_raw": 0.8756,
+      "uplift": 0.9793,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.3
+    },
+    "VQ鲜榨果汁": {
+      "n": 1,
+      "uplift_raw": 0.8802,
+      "uplift": 0.98,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.3
+    },
+    "李若桃": {
+      "n": 1,
+      "uplift_raw": 0.7679,
+      "uplift": 0.9613,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.4
+    },
+    "麒麟大口茶": {
+      "n": 1,
+      "uplift_raw": 0.6622,
+      "uplift": 0.9437,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.3
+    },
+    "爷爷不泡茶": {
+      "n": 1,
+      "uplift_raw": 0.7426,
+      "uplift": 0.9571,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 2.0
+    },
+    "闲吉": {
+      "n": 1,
+      "uplift_raw": 0.6612,
+      "uplift": 0.9435,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.1
+    },
+    "周四晚": {
+      "n": 1,
+      "uplift_raw": 1.3719,
+      "uplift": 1.062,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.6
+    },
+    "柠好鸭": {
+      "n": 1,
+      "uplift_raw": 1.6544,
+      "uplift": 1.1091,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.2
+    },
+    "angtea艾熟茶": {
+      "n": 1,
+      "uplift_raw": 1.1804,
+      "uplift": 1.0301,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.2
+    },
+    "Tamkoko泰柯茶园": {
+      "n": 1,
+      "uplift_raw": 0.7605,
+      "uplift": 0.9601,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.2
+    },
+    "OT另茶": {
+      "n": 1,
+      "uplift_raw": 0.8322,
+      "uplift": 0.972,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.4
+    },
+    "煲珠公": {
+      "n": 1,
+      "uplift_raw": 1.0324,
+      "uplift": 1.0054,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.4
+    },
+    "茶理宜世": {
+      "n": 1,
+      "uplift_raw": 1.2049,
+      "uplift": 1.0341,
+      "weight": 0.1667,
+      "reliable": false,
+      "own_S": 1.5
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "version": 8,
+  "method": "brand_blind_residual_within_proxy_district",
+  "distance": "walking_road_network (amap /v3/distance type=3, frozen in data/road_distance.db)",
+  "supersedes": "brand_uplift_v3.json (v7, haversine)",
+  "note": "v8 = v7 的规则**逐字不变**（品牌盲残差 / K=5 收缩 / TIER1 免 clamp / 同 proxy district 中位），**只把距离口径从直线换成步行路网**。",
+  "params": {
+    "anchor_max_m": 1000,
+    "use_min_n": 5,
+    "shrink_K": 5.0,
+    "min_n_uplift": 3,
+    "uplift_clamp": [
+      0.8,
+      1.25
+    ],
+    "clamp_tier1_exempt": true,
+    "boot_seed": 20260918,
+    "tier1_n": 10,
+    "coarse_factor": 2.5,
+    "radius_m": 500
+  },
+  "sample": {
+    "n_poi": 3959,
+    "n_stores": 3959,
+    "n_anchored": 11,
+    "n_used": 4,
+    "n_districts": 5,
+    "frac": 0.004,
+    "seed": 777,
+    "mode": "road"
+  },
+  "coverage": {
+    "api_calls": 17,
+    "api_fail": 0,
+    "straight_fallback": 0,
+    "fallback_demand": 0,
+    "fallback_share": 0,
+    "road_pairs": 14093,
+    "note": "straight_fallback = 路网库未命中而回退直线的**点数**；非 0 时该产物为混口径，不得直接采用"
+  },
+  "brands": {
+    "霸王茶姬": {
+      "n": 1,
+      "raw": 1.0,
+      "shrunk": 1.0,
+      "uplift": 1.0,
+      "weight": 0.1667,
+      "tier": "TIER3",
+      "ci": null,
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 2.0
+    },
+    "奈雪": {
+      "n": 1,
+      "raw": 1.8448,
+      "shrunk": 1.1408,
+      "uplift": 1.0,
+      "weight": 0.1667,
+      "tier": "TIER3",
+      "ci": null,
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.8
+    },
+    "个体/杂牌": {
+      "n": 2,
+      "raw": 1.5303,
+      "shrunk": 1.1515,
+      "uplift": 1.0,
+      "weight": 0.2857,
+      "tier": "TIER3",
+      "ci": [
+        0.8385,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.0
+    }
+  }
+}

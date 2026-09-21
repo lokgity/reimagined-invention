@@ -1,4 +1,4 @@
-# 浙里选址 —— AI 商铺选址智能顾问
+# 址南针 —— AI 商铺选址智能顾问
 
 > **不是数据的搬运工，是决策的解释器。**
 > 面向个人创业者的选址决策顾问：输入一句话，输出"该不该开、为什么、怎么算"。
@@ -13,7 +13,7 @@
 
 ## 📌 项目简介
 
-**浙里选址**是一个基于 **LangGraph 多阶段决策流 + Chainlit 对话界面**的商铺选址智能体。
+**址南针**是一个基于 **LangGraph 多阶段决策流 + Chainlit 对话界面**的商铺选址智能体。
 用户只需用一句自然语言描述想开的店（品类、大致位置、租金、预算），Agent 就会：
 
 1. **理解意图** —— 解析品类 / 地址 / 租金 / 面积 / 预算 / 客群
@@ -91,24 +91,30 @@ site-selection-agent/
 ├── src/
 │   ├── config.py           # 配置加载 + 品类画像参数
 │   ├── data/
-│   │   ├── fetch_poi.py    # 高德 POI 抓取（限速 / 幂等）
-│   │   ├── query.py        # SQLite 本地查询
+│   │   ├── fetch_poi.py    # 高德 POI 抓取（限速 / 幂等 / 磁盘缓存）
+│   │   ├── fetch_around.py # 周边搜索抓取
+│   │   └── query.py        # SQLite 本地查询
+│   ├── engine/             # 确定性评分层（同一输入同一结果，不依赖 LLM）
+│   │   ├── scoring.py      # 评分引擎（真 Huff 捕获份额 + 盈利一票否决 + 租金临界点反解）
+│   │   ├── utilities.py    # 水电 / 成本 / 净利 / 回本测算
+│   │   ├── brands.py       # 连锁品牌系数（Huff 吸引力 + 加盟政策参考）
+│   │   ├── negotiation.py  # AI① 租金谈判：58 同商圈行情分布 + 承受力上限
+│   │   ├── competitor_insight.py # AI④ 竞品口碑画像（高德公开字段）
 │   │   └── realtime.py     # 实时周边搜索兜底
-│   ├── engine/
-│   │   ├── scoring.py      # 评分引擎（Huff 引力模型）
-│   │   └── utilities.py    # 盈利测算（成本 / 净利 / 回本）
 │   ├── agent/
-│   │   ├── agent_graph.py  # LangGraph 多阶段决策流（核心）
+│   │   ├── agent_graph.py  # LangGraph 多阶段决策流（对话编排核心）
+│   │   ├── agent.py        # 选址领域逻辑层（口语抽取 / 地理编码 / 规则兜底解读）
 │   │   ├── state.py        # 图状态定义
 │   │   ├── llm.py          # 多模型 LLM 调用 / 切换
-│   │   ├── analysis_store.py   # 分析结果持久化（跨会话对比）
-│   │   ├── conversation_store.py # 多会话管理
+│   │   ├── vision.py       # AI③ 门头照 VLM 视觉分析
+│   │   ├── knowledge.py    # AI② 选址知识库（RAG 检索）
 │   │   ├── rental58.py     # 58同城真实在租店铺抓取
-│   │   └── prompts.py      # 提示词工程
+│   │   ├── analysis_store.py   # 分析结果持久化（跨会话对比）
+│   │   └── conversation_store.py # 多会话管理
+│   ├── analysis/           # 模型标定与回归（λ 标定 / 锚点标定 / 敏感性 / 端到端测试）
 │   └── ui/
-│       ├── app_chainlit.py # Chainlit 主界面（右侧工作台）
-│       ├── report_pdf.py   # PDF 报告导出
-│       └── app.py          # 旧版 Streamlit 界面（可选）
+│       ├── app_chainlit.py # Chainlit 界面（唯一入口，含右侧工作台）
+│       └── report_pdf.py   # PDF 报告导出
 ├── public/                 # 前端静态资源（自定义侧栏 / 工作台）
 │   ├── sidebar.js          # 右侧工作台渲染（评分卡 / 雷达图 / 对比）
 │   └── app.css

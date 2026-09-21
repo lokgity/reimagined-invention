@@ -1,0 +1,9 @@
+﻿变量,Levene_p,方差齐,正态,采用方法,统计量,自由度,p,显著
+A_客群POI,1e-05,False,False,Kruskal-Wallis,56.744515,H(2),0.0,***
+B_商业POI,0.011378,False,False,Kruskal-Wallis,33.681442,H(2),0.0,***
+P_brand,0.102187,True,False,Kruskal-Wallis,1.667014,H(2),0.434523,ns
+品牌系数S,0.19487,True,False,Kruskal-Wallis,0.039554,H(2),0.980417,ns
+本地竞争密度,0.023993,False,False,Kruskal-Wallis,27.046498,H(2),1e-06,***
+外卖月售,0.133389,True,False,Kruskal-Wallis,5.748943,H(2),0.056446,ns
+需求D,1.2e-05,False,False,Kruskal-Wallis,60.916372,H(2),0.0,***
+P_blind,0.054718,True,False,Kruskal-Wallis,1.540789,H(2),0.46283,ns

@@ -1,0 +1,2591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>址南针 · 应用方案</title>
+<style>
+/* ============================================================
+   址南针 应用方案书 —— 视觉系统
+   色板派生自应用本体 public/sidebar.js 的 --zl-* 变量（浅色档）：
+   藏青 #0e353a / 金 #c9a45c / 浅金 #e5c98a / 米底 #fbf5e3·#fdfbee
+   ============================================================ */
+:root{
+  --ink:#0e353a;          /* 主色 藏青 */
+  --ink-2:#2a4a4d;
+  --gold:#c9a45c;
+  --gold-l:#e5c98a;
+  --gold-p:#f0d9a6;
+  --paper:#fbf5e3;        /* 米底 */
+  --paper-2:#fdfbee;
+  --muted:#5d6f69;
+  --line:rgba(14,53,58,.16);
+  --line-gold:rgba(201,164,92,.35);
+  --card:rgba(255,255,255,.72);
+  --red:#b91c1c;          /* 否决 / 亏损 */
+  --red-bg:rgba(185,28,28,.07);
+  --green:#0f7a55;        /* 通过 / 盈利 */
+  --green-bg:rgba(15,122,85,.08);
+  --amber:#b45309;        /* 警告 / 不稳健 */
+  --amber-bg:rgba(180,83,9,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{
+  font-family:"Source Han Sans SC","Noto Sans SC","Microsoft YaHei","PingFang SC",sans-serif;
+  background:#8a8f8c;color:var(--ink);
+  font-size:11.0pt;line-height:1.78;
+  -webkit-font-smoothing:antialiased;
+}
+/* ---------- 页面容器（A4 纵向） ---------- */
+.page{
+  position:relative;width:210mm;height:297mm;margin:8mm auto;
+  background:linear-gradient(170deg,var(--paper-2) 0%,var(--paper) 55%,#f7efd9 100%);
+  overflow:hidden;
+  box-shadow:0 3mm 10mm rgba(0,0,0,.34);
+  padding:15mm 15mm 13mm;
+  display:flex;flex-direction:column;
+}
+@media print{
+  body{background:#fff}
+  .page{margin:0;box-shadow:none;page-break-after:always;break-after:page}
+  .page:last-child{page-break-after:auto;break-after:auto}
+}
+/* ---------- 页眉 / 页脚 ---------- */
+.hd{display:flex;justify-content:space-between;align-items:center;
+    font-size:7.6pt;color:var(--muted);letter-spacing:.09em;
+    border-bottom:.5pt solid var(--line);padding-bottom:2.4mm;margin-bottom:5mm;flex:0 0 auto}
+.hd .hd-l{display:flex;align-items:center;gap:2.2mm;color:var(--ink);font-weight:600}
+.hd .dot{width:2.6mm;height:2.6mm;border-radius:50%;background:var(--gold);display:inline-block}
+.ft{position:absolute;left:15mm;right:15mm;bottom:6.5mm;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:7.4pt;color:var(--muted);border-top:.5pt solid var(--line);padding-top:2mm}
+.ft .pn{font-weight:700;color:var(--ink);font-size:8.6pt;letter-spacing:.06em}
+.bd{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+    gap:calc(3.4mm * var(--bd-stretch,1));justify-content:flex-start}
+/* 均匀拉伸：由渲染脚本按实测余量逐页注入 --bd-stretch 与 --bd-pad */
+</style>
+<style id="fitvars">
+.page:nth-of-type(1){--bd-stretch:1.000;--bd-pad:1.000}
+.page:nth-of-type(2){--bd-stretch:0.880;--bd-pad:0.830}
+.page:nth-of-type(3){--bd-stretch:1.563;--bd-pad:0.895}
+.page:nth-of-type(4){--bd-stretch:1.638;--bd-pad:1.063}
+.page:nth-of-type(5){--bd-stretch:0.887;--bd-pad:0.805}
+.page:nth-of-type(6){--bd-stretch:1.614;--bd-pad:1.528}
+.page:nth-of-type(7){--bd-stretch:0.881;--bd-pad:0.999}
+.page:nth-of-type(8){--bd-stretch:1.350;--bd-pad:1.350}
+.page:nth-of-type(9){--bd-stretch:0.882;--bd-pad:0.817}
+.page:nth-of-type(10){--bd-stretch:0.931;--bd-pad:1.240}
+.page:nth-of-type(11){--bd-stretch:2.002;--bd-pad:1.722}
+.page:nth-of-type(12){--bd-stretch:0.939;--bd-pad:1.233}
+.page:nth-of-type(13){--bd-stretch:2.399;--bd-pad:1.722}
+.page:nth-of-type(14){--bd-stretch:2.093;--bd-pad:1.667}
+.page:nth-of-type(15){--bd-stretch:1.409;--bd-pad:1.384}
+.page:nth-of-type(16){--bd-stretch:1.884;--bd-pad:1.571}
+.page:nth-of-type(17){--bd-stretch:2.146;--bd-pad:1.683}
+.page:nth-of-type(18){--bd-stretch:0.880;--bd-pad:0.822}
+.page:nth-of-type(19){--bd-stretch:0.881;--bd-pad:1.005}
+.page:nth-of-type(20){--bd-stretch:2.135;--bd-pad:1.529}
+</style>
+<style>
+/* ---------- 标题层级 ---------- */
+h1{font-size:26pt;line-height:1.16;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+h2{font-size:15.2pt;font-weight:800;color:var(--ink);line-height:1.28;
+   display:flex;align-items:baseline;gap:2.6mm;margin-bottom:.6mm}
+h2 .no{font-size:10pt;font-weight:800;color:var(--gold);
+       font-variant-numeric:tabular-nums;letter-spacing:.02em;flex:0 0 auto;
+       border:1pt solid var(--line-gold);border-radius:1mm;padding:.2mm 1.6mm}
+h3{font-size:10.6pt;font-weight:700;color:var(--ink);margin-bottom:.8mm}
+.lead{font-size:11.4pt;line-height:1.6;color:var(--ink-2);font-weight:500}
+p{margin-bottom:1.6mm}
+.small{font-size:8.6pt;line-height:1.5;color:var(--muted)}
+.tiny{font-size:7.6pt;line-height:1.44;color:var(--muted)}
+b,strong{font-weight:700;color:var(--ink)}
+.gold{color:var(--gold)}
+.red{color:var(--red)}
+.green{color:var(--green)}
+.mono{font-family:"JetBrains Mono","Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+/* 章节大标题条 */
+.sech{display:flex;align-items:baseline;gap:2.6mm;border-bottom:1px solid var(--line-gold);
+      padding-bottom:1.8mm;margin-bottom:.4mm}
+.sech .kicker{font-size:7.4pt;letter-spacing:.16em;color:var(--gold);font-weight:700}
+/* ---------- 通用卡片 ---------- */
+.card{background:var(--card);border:.5pt solid var(--line);border-radius:1.6mm;
+      padding:calc(3.6mm * var(--bd-pad,1)) calc(4mm * var(--bd-pad,1))}
+.card.g{border-color:var(--line-gold)}
+.card.ink{background:var(--ink);color:#e9f0ee;border-color:var(--ink)}
+.card.ink b,.card.ink strong{color:var(--paper-2)}
+.card.warn{background:var(--red-bg);border-color:rgba(185,28,28,.3)}
+.card.ok{background:var(--green-bg);border-color:rgba(15,122,85,.3)}
+.card.amb{background:var(--amber-bg);border-color:rgba(180,83,9,.3)}
+.card h3{margin-bottom:1.2mm}
+.grid{display:grid;gap:calc(3mm * var(--bd-pad,1))}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.row{display:flex;gap:calc(3mm * var(--bd-pad,1))}
+/* ---------- 大数字 ---------- */
+.big{font-size:23pt;font-weight:800;line-height:1;letter-spacing:-.02em;
+     color:var(--gold);font-variant-numeric:tabular-nums}
+.big.ink{color:var(--ink)}
+.big.red{color:var(--red)}
+.big.green{color:var(--green)}
+.big .u{font-size:10pt;font-weight:600;margin-left:.6mm}
+/* KPI 块 */
+.kpi{background:var(--card);border:.5pt solid var(--line);border-left:2pt solid var(--gold);
+     border-radius:1.2mm;padding:calc(2.6mm * var(--bd-pad,1)) calc(3mm * var(--bd-pad,1))}
+.kpi .lab{font-size:7.8pt;color:var(--muted);letter-spacing:.05em;margin-bottom:.9mm}
+.kpi .val{font-size:15pt;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .val .u{font-size:8.6pt;font-weight:600;color:var(--muted);margin-left:.5mm}
+.kpi.r{border-left-color:var(--red)} .kpi.r .val{color:var(--red)}
+.kpi.g{border-left-color:var(--green)} .kpi.g .val{color:var(--green)}
+.kpi.a{border-left-color:var(--amber)} .kpi.a .val{color:var(--amber)}
+/* ---------- 表格 ---------- */
+table{width:100%;border-collapse:collapse;font-size:9.1pt;line-height:1.5}
+th{background:rgba(14,53,58,.075);color:var(--ink);font-weight:700;text-align:left;
+   padding:calc(1.5mm * var(--bd-pad,1)) 2mm;border-bottom:.8pt solid var(--line-gold);white-space:nowrap}
+td{padding:calc(1.4mm * var(--bd-pad,1)) 2mm;border-bottom:.4pt solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.c,th.c{text-align:center}
+tbody tr.hl{background:rgba(201,164,92,.1)}
+tbody tr.bad{background:var(--red-bg)}
+tbody tr.good{background:var(--green-bg)}
+/* ---------- 标签 ---------- */
+.tag{display:inline-block;font-size:7.2pt;font-weight:700;letter-spacing:.03em;
+     padding:.35mm 1.5mm;border-radius:.8mm;white-space:nowrap}
+.tag.gold{background:rgba(201,164,92,.18);color:#8a6c26}
+.tag.ink{background:rgba(14,53,58,.1);color:var(--ink)}
+.tag.red{background:rgba(185,28,28,.12);color:var(--red)}
+.tag.green{background:rgba(15,122,85,.13);color:var(--green)}
+.tag.amber{background:rgba(180,83,9,.13);color:var(--amber)}
+.tag.line{background:none;border:.6pt solid var(--line-gold);color:var(--gold)}
+/* ---------- 列表 ---------- */
+ul,ol{margin:0 0 1.4mm 4mm}
+li{margin-bottom:.9mm;line-height:1.52}
+li::marker{color:var(--gold);font-weight:700}
+ul.tight li{margin-bottom:.5mm}
+ol.steps{counter-reset:s;list-style:none;margin-left:0}
+ol.steps>li{counter-increment:s;position:relative;padding-left:6mm;margin-bottom:1.4mm}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
+  width:4mm;height:4mm;border-radius:50%;background:var(--gold);color:#fff;
+  font-size:7pt;font-weight:800;display:flex;align-items:center;justify-content:center}
+/* ---------- 引用 / 金句 ---------- */
+.quote{border-left:2.4pt solid var(--gold);background:rgba(201,164,92,.08);
+       padding:2.6mm 3.4mm;border-radius:0 1.2mm 1.2mm 0;font-size:10.4pt;
+       line-height:1.55;font-weight:600;color:var(--ink)}
+.quote .q{font-size:20pt;color:var(--gold-l);line-height:0;vertical-align:-2mm;margin-right:1mm}
+/* ---------- 图位（留给截图） ---------- */
+.shot{position:relative;background:rgba(255,255,255,.55);
+      border:1pt dashed var(--line-gold);border-radius:1.6mm;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      text-align:center;padding:2mm;gap:1mm}
+.shot .ic{width:7mm;height:7mm;border-radius:50%;border:1pt solid var(--line-gold);
+          display:flex;align-items:center;justify-content:center;
+          color:var(--gold);font-size:9pt;font-weight:700}
+.shot .no{font-size:7.4pt;font-weight:800;color:var(--gold);letter-spacing:.1em}
+.shot .cap{font-size:8.4pt;font-weight:700;color:var(--ink);line-height:1.4}
+.shot .why{font-size:7.2pt;color:var(--muted);line-height:1.38}
+/* ---------- 净利正负条（以 50% 为零轴；一眼看出"误判把赚钱判成亏钱"） ---------- */
+.pnl{margin-top:1.8mm}
+.pnl-r{display:flex;align-items:center;gap:2mm;margin:.85mm 0}
+.pnl-k{flex:0 0 36mm;font-size:7.4pt;color:var(--muted)}
+.pnl-t{flex:1 1 auto;height:3.4mm;border-radius:1.2mm;background:rgba(0,0,0,.06);
+  position:relative;overflow:hidden}
+.pnl-t em{position:absolute;left:50%;top:0;bottom:0;width:.6pt;background:rgba(0,0,0,.3)}
+.pnl-t i{position:absolute;top:0;bottom:0;border-radius:1.2mm}
+.pnl-t i.pos{background:linear-gradient(90deg,#5aa98a,#0f7a55)}
+.pnl-t i.neg{background:linear-gradient(90deg,#e88b8b,#dc2626)}
+.pnl-v{flex:0 0 21mm;text-align:right;font-size:8pt;font-weight:800;
+  font-variant-numeric:tabular-nums}
+.pnl-v.pos{color:#0f7a55}
+.pnl-v.neg{color:var(--red)}
+/* ---------- 维度条形对比（把"加权求和"的算式画出来；比文字直观得多） ---------- */
+.wbar{display:flex;align-items:center;gap:1.4mm;margin:.85mm 0}
+.wbar .wn{flex:0 0 12mm;font-size:7.4pt;color:var(--muted)}
+.wbar .wt{flex:1 1 auto;height:3.2mm;border-radius:1.1mm;background:rgba(0,0,0,.07);
+  position:relative;overflow:hidden}
+.wbar .wt i{position:absolute;left:0;top:0;bottom:0;border-radius:1.1mm;
+  background:linear-gradient(90deg,#7f9f99,#0e353a)}
+.wbar .wv{flex:0 0 17mm;font-size:8pt;font-weight:800;text-align:right;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.wbar .wv em{font-style:normal;font-weight:600;font-size:6.6pt;color:var(--muted);margin-left:.6mm}
+.wbar.hot .wt i{background:linear-gradient(90deg,#e88b8b,#b91c1c)}
+.wbar.hot .wv{color:var(--red)}
+/* 闸门：一票否决的视觉化 */
+.gate{margin-top:1.2mm}
+.gate-bar{background:linear-gradient(90deg,rgba(15,122,85,.18),rgba(15,122,85,.05));
+  border-left:2.6pt solid #0f7a55;border-radius:1mm;padding:1.5mm 2.2mm;
+  font-size:8.2pt;color:var(--ink)}
+/* ---------- 功能表图标（P05） ---------- */
+.tico{display:inline-block;margin-right:1.1mm;font-size:8.6pt}
+/* ---------- 竞品能力矩阵（P06：原表看不出差距，改成 ✓/✗ 矩阵） ---------- */
+.vsx{width:100%;border-collapse:collapse;font-size:7.9pt;margin-top:1.5mm}
+.vsx th{background:rgba(201,164,92,.13);color:var(--ink);font-weight:800;
+  padding:1.3mm 1.5mm;border-bottom:.8pt solid var(--line-gold);text-align:center}
+.vsx th.k{text-align:left}
+.vsx td{padding:1.25mm 1.5mm;border-bottom:.7pt solid rgba(201,164,92,.18);text-align:center;
+  color:var(--muted)}
+.vsx td.k{text-align:left;font-weight:700;color:var(--ink)}
+.vsx td.k span{display:block;font-size:6.8pt;font-weight:400;color:var(--muted);margin-top:.2mm}
+.vsx tr.us td{background:rgba(15,122,85,.09);border-bottom:.9pt solid rgba(15,122,85,.35)}
+.vsx tr.us td.k{color:#0f7a55;font-size:9pt}
+.vsx .y{color:#0f7a55;font-weight:800;font-size:9.4pt}
+.vsx .p{color:var(--gold);font-weight:800;font-size:9.4pt}
+.vsx .n{color:#c9c9c9;font-weight:700;font-size:9.4pt}
+/* ---------- 五阶段流程条（P04：原来只有一张密表，看不出"钱漏在哪一步"） ---------- */
+.stage-flow{display:flex;align-items:stretch;margin-top:2.4mm}
+.sf-i{flex:1 1 0;text-align:center;padding:1.7mm .5mm;border-radius:1.3mm;
+  border:.8pt solid var(--line-gold);background:rgba(201,164,92,.05)}
+.sf-i.d1{background:rgba(201,164,92,.11)}
+.sf-i.d2{background:rgba(201,164,92,.19)}
+.sf-i.d3{background:rgba(201,164,92,.28)}
+.sf-i.d4{background:rgba(201,164,92,.38)}
+.sf-n{display:block;font-size:11pt;font-weight:800;color:var(--gold);line-height:1}
+.sf-t{display:block;font-size:9pt;font-weight:800;color:var(--ink);margin-top:.5mm}
+.sf-s{display:block;font-size:6.8pt;color:var(--muted);margin-top:.3mm}
+.sf-a{flex:0 0 3.6mm;display:flex;align-items:center;justify-content:center;
+  color:var(--line-gold);font-size:11pt;font-weight:800}
+.sf-cap{margin-top:.9mm;text-align:right;font-size:7pt;color:var(--muted)}
+/* ---------- 三类用户视觉带（2026-09-21：这一页原先全是文字卡片+表格，抓不住人） ---------- */
+.users3{display:grid;grid-template-columns:repeat(3,1fr);gap:2.8mm;margin-top:2.6mm}
+.u3{border:1pt solid var(--line-gold);border-top:3pt solid var(--gold);border-radius:1.6mm;
+  padding:2.2mm 2.6mm;background:rgba(255,255,255,.62)}
+.u3.b{border-top-color:#5f918c}
+.u3.c{border-top-color:#7d6ea8}
+.u3-ic{width:7.4mm;height:7.4mm;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;background:rgba(201,164,92,.15);color:var(--gold);margin-bottom:1.1mm}
+.u3-ic svg{width:4.3mm;height:4.3mm}
+.u3-t{font-size:10.2pt;font-weight:800;color:var(--ink);line-height:1.26}
+.u3-s{font-size:7pt;color:var(--gold);font-weight:800;letter-spacing:.07em;margin-top:.4mm}
+.u3-d{font-size:7.5pt;color:var(--muted);line-height:1.48;margin-top:1mm}
+.u3-join{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;
+  gap:3.2mm;flex-wrap:wrap;background:linear-gradient(90deg,rgba(201,164,92,.08),
+  rgba(201,164,92,.2),rgba(201,164,92,.08));border:.9pt solid var(--line-gold);
+  border-radius:1.6mm;padding:1.6mm 3mm}
+.u3j-l{font-size:8.8pt;color:var(--muted)}
+.u3j-q{font-size:9.4pt;font-weight:800;color:var(--ink)}
+/* ---------- 实拍照片位（留位用，照片按同画幅放进来即可，版心高度不变） ---------- */
+.photobox{position:relative;border:1pt dashed var(--line-gold);border-radius:1.6mm;
+  background:rgba(255,255,255,.5);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1mm;padding:2mm;text-align:center;
+  aspect-ratio:3.4/1;overflow:hidden}
+.photobox .ph-ic{width:7mm;height:7mm;border-radius:50%;border:1pt solid var(--line-gold);
+  display:flex;align-items:center;justify-content:center;color:var(--gold);
+  font-size:8pt;font-weight:800}
+.photobox .ph-t{font-size:9pt;font-weight:800;color:var(--ink)}
+.photobox .ph-c{font-size:7.4pt;color:var(--muted);line-height:1.4}
+/* ---------- 仿真大屏（图文并排，等量替换原来的三栏文字） ---------- */
+.sbwrap{display:grid;grid-template-columns:1.3fr 1fr;gap:3mm;align-items:center;margin-top:1mm}
+.sbimg img{width:100%;height:auto;display:block;border-radius:1mm;border:.6pt solid var(--line)}
+.sbtxt .tight{margin-top:.15mm}
+/* ---------- 流程 / 结构 ---------- */
+.flow{display:flex;align-items:stretch;gap:0}
+.flow .nd{flex:1;background:var(--card);border:.5pt solid var(--line);
+          border-radius:1.2mm;padding:2mm 1.6mm;text-align:center;font-size:8pt;line-height:1.35}
+.flow .ar{display:flex;align-items:center;color:var(--gold);font-size:11pt;
+          padding:0 1.2mm;flex:0 0 auto}
+.bar{height:2.6mm;border-radius:1.3mm;background:rgba(14,53,58,.1);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:1.3mm;background:linear-gradient(90deg,var(--gold),var(--gold-l))}
+.bar.r>i{background:linear-gradient(90deg,#b91c1c,#dc2626)}
+.bar.g>i{background:linear-gradient(90deg,#0f7a55,#16a34a)}
+/* ---------- 封面 ---------- */
+.cover{background:linear-gradient(155deg,#0b1d22 0%,#123036 48%,#1a4048 100%);
+       color:#e9f0ee;padding:0}
+.cover .inner{position:absolute;inset:0;padding:26mm 20mm 16mm;display:flex;flex-direction:column}
+/* 水印：罗盘完全置于页面内，只露出一部分作为背景纹样 */
+.cover .wm{position:absolute;right:-52mm;top:76mm;width:126mm;height:126mm;opacity:.10;pointer-events:none}
+.cover .wm2{position:absolute;left:-58mm;bottom:-34mm;width:112mm;height:112mm;opacity:.065;pointer-events:none}
+.cover .kicker{font-size:8.2pt;letter-spacing:.34em;color:var(--gold-l);font-weight:700;margin-bottom:4mm}
+.cover h1{font-size:52pt;color:#fff;letter-spacing:.1em;margin-bottom:3mm;
+          text-shadow:0 .6mm 3mm rgba(0,0,0,.35);font-weight:800}
+.cover .sub{font-size:12.4pt;color:var(--gold-p);letter-spacing:.16em;font-weight:600;
+            margin-bottom:10mm;padding-bottom:5mm;border-bottom:.8pt solid rgba(229,201,138,.34)}
+.cover .claim{font-size:18.4pt;line-height:1.52;font-weight:700;color:#f7f3e4;
+              max-width:152mm;margin-bottom:4mm}
+.cover .claim em{font-style:normal;color:var(--gold-p);
+                 border-bottom:1.4pt solid var(--gold);padding-bottom:.4mm}
+.cover .tagline{font-size:10.6pt;color:#a8bfc2;letter-spacing:.05em}
+.cover .mid{flex:1 1 auto;display:flex;align-items:center;min-height:0}
+.cover .mid .box{width:100%}
+.cover .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;
+             border-top:.8pt solid rgba(229,201,138,.3);padding-top:5mm;flex:0 0 auto}
+.cover .meta .m .k{font-size:7.4pt;color:#8fa6a8;letter-spacing:.13em;margin-bottom:1.2mm}
+.cover .meta .m .v{font-size:11.4pt;font-weight:700;color:var(--gold-p);
+                   font-variant-numeric:tabular-nums}
+/* ---------- 页内分节标记 ---------- */
+.pill{display:inline-flex;align-items:center;gap:1.2mm;font-size:7.4pt;font-weight:800;
+      letter-spacing:.1em;color:var(--gold);border:.6pt solid var(--line-gold);
+      border-radius:99mm;padding:.5mm 2.2mm}
+.divider{height:.5pt;background:var(--line);margin:1mm 0}
+.stat-in{display:flex;align-items:baseline;gap:1.6mm}
+.stat-in .l{font-size:8pt;color:var(--muted);flex:1}
+.stat-in .v{font-size:9.4pt;font-weight:700;font-variant-numeric:tabular-nums}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:2.4mm}
+.vs .mid{font-size:11pt;font-weight:800;color:var(--gold)}
+/* ---------- P19 实机截图 + 性能实测（2026-09-19） ---------- */
+.shot.has-img{justify-content:flex-start;padding:1.3mm;gap:1.1mm;background:rgba(255,255,255,.72)}
+.shot.has-img img{width:88%;height:auto;display:block;margin:0 auto;border-radius:1mm;border:.6pt solid var(--line)}
+.shot.has-img .cap{font-size:7.6pt}
+.kpi4{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;text-align:center}
+.kpi4 .v{font-size:13pt;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi4 .v small{font-size:7.8pt;font-weight:700}
+.kpi4 .k{font-size:6.9pt;color:var(--muted);line-height:1.32;margin-top:.5mm}
+</style>
+<section class="page cover">
+  <div class="wm" id="wm1"></div>
+  <div class="wm2" id="wm2"></div>
+  <div class="inner">
+    <div class="kicker">iCAN 大学生创新创业大赛 · AI 应用创新挑战赛</div>
+    <h1>址南针</h1>
+    <div class="sub">浙江商铺选址决策智能体</div>
+
+    <div class="mid"><div class="box">
+      <div class="claim">
+        同一间铺面，招牌换过<em>四轮</em>。<br>
+        每一轮，都是从「<em>这位置不错</em>」开始的。<br>
+        址南针想把这一笔账，算在<em>签字之前</em>。
+      </div>
+      <div class="tagline">位置决定流量的上限，<em>净利润</em>决定能不能活到兑现那天。</div>
+
+    </div></div>
+
+    <div class="meta">
+      <div class="m"><div class="k">经济学内核</div><div class="v">Huff 引力模型</div></div>
+      <div class="m"><div class="k">决策口径</div><div class="v">净利润 · 一票否决</div></div>
+      <div class="m"><div class="k">覆盖范围</div><div class="v">浙江省 11 市</div></div>
+      <div class="m"><div class="k">交付形态</div><div class="v">对话式 Agent</div></div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">02</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">BACKGROUND</span></div>
+      <h2><span class="no">01</span>同一间铺面，为什么换过四轮招牌</h2>
+    </div>
+
+    <div class="card g" style="padding:3.8mm 4mm">
+      <div class="two-col" style="gap:6mm;align-items:start">
+        <div>
+          <p class="small" style="margin-bottom:1.6mm">
+            我就读的大学北门外有一条云创商业街。它紧挨校门，离地铁 4、5 号线换乘站不足百米，
+            门口就是主干道，一公里内的固定客群超过十万。按常理，这样的位置不会缺人流。
+          </p>
+          <p class="small" style="margin-bottom:0">
+            但我在这里的几年里，甜品店和奶茶店换了一批又一批。同一间铺面，
+            上学期挂的是一个牌子，下学期再看，已经重新装修成了别家。
+          </p>
+        </div>
+        <div style="border-left:.8pt solid var(--line-gold);padding-left:5mm">
+          <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">我反复在想的一个问题</div>
+          <div style="font-size:11.4pt;font-weight:800;line-height:1.5;margin-top:1.4mm">
+            一个开在大学门口、离地铁口不足百米、边上就是马路的商业街，
+            <span class="gold">为什么那么多店铺活不下来？</span>
+          </div>
+          <div class="tiny" style="margin-top:1.6mm;line-height:1.5">
+            位置不差、人流不少 —— 缺的是<b>把「这笔租金赚不赚得回来」算在签字之前</b>。
+          </div>
+        </div>
+      </div>
+
+      <!-- 实拍照片位 ×2（策 2026-09-21：放云创新旧店铺更替的实拍）。
+           用 aspect-ratio 锁住画幅，照片按同机位并排放进来即可，不会改变版心高度。 -->
+      <div class="grid g2" style="gap:3mm;margin-top:2.8mm">
+        <div class="photobox">
+          <div class="ph-ic">照</div>
+          <div class="ph-t">实拍 · 云创商业街</div>
+          <div class="ph-c">同一间铺面 · <b>上一轮招牌</b></div>
+        </div>
+        <div class="photobox">
+          <div class="ph-ic">照</div>
+          <div class="ph-t">实拍 · 云创商业街</div>
+          <div class="ph-c">同一间铺面 · <b>这一轮换成了什么</b>（建议同机位）</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>这条街的招牌更替，也是全国个体经营者的基本盘</h3>
+      <div class="grid g4" style="gap:2.6mm">
+        <div class="kpi"><div class="lab">全国登记在册个体工商户</div>
+          <div class="val">1.27<span class="u">亿户</span></div>
+          <div class="tiny">市场监管总局 · 2025.05</div></div>
+        <div class="kpi"><div class="lab">2025 年全国新设个体工商户</div>
+          <div class="val">1619.4<span class="u">万户</span></div>
+          <div class="tiny">市场监管总局 · 2026.03</div></div>
+        <div class="kpi"><div class="lab">2025 年全国新开餐饮门店</div>
+          <div class="val">334.43<span class="u">万家</span></div>
+          <div class="tiny">中国饭店协会 · 2026 年度报告</div></div>
+        <div class="kpi r"><div class="lab">2025 年餐饮行业闭店率</div>
+          <div class="val">42.17<span class="u">%</span></div>
+          <div class="tiny">中国饭店协会 · 2026.09</div></div>
+      </div>
+    </div>
+
+    <div class="card ink" style="padding:3.6mm 4mm">
+      <h3 style="color:#f0d9a6">把两组数字放在一起，问题的形状就出来了</h3>
+      <div class="grid g3" style="gap:3.4mm;margin-top:1.8mm">
+        <div>
+          <div style="font-size:15pt;font-weight:800;color:#fda4a4;line-height:1.15">27% → 34%</div>
+          <div class="tiny" style="color:#d5e2e1;margin-top:1.2mm">
+            10 家店以下的单体门店，新开 3 个月内闭店率一年内从 27% 升到 34%，
+            <b style="color:#f7f3e4">半年内约 50% 关门</b>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:15pt;font-weight:800;color:#f0d9a6;line-height:1.15">≈ 1/4 → 40%</div>
+          <div class="tiny" style="color:#d5e2e1;margin-top:1.2mm">
+            10 家店以上的连锁门店，3 个月关掉约四分之一，半年接近 40%
+            —— 有品牌背书的一组，同样过得艰难
+          </div>
+        </div>
+        <div>
+          <div style="font-size:15pt;font-weight:800;color:#fda4a4;line-height:1.15">15<span style="font-size:9pt">个月</span></div>
+          <div class="tiny" style="color:#d5e2e1;margin-top:1.2mm">
+            门店平均存活周期，较 2019 年近乎减半 —— 从挂上招牌到关店，平均约 400 天
+          </div>
+        </div>
+      </div>
+      <div class="divider" style="background:rgba(229,201,138,.25);margin:2.4mm 0 1.6mm"></div>
+      <div class="tiny" style="color:#9db3b6">
+        来源：美团到店餐饮事业部在 2025 年 10 月美团餐饮大会上公布的数据；
+        门店存活周期引自《2026 中国餐饮市场蓝皮书》（商务部、复旦大学消费大数据实验室等联合发布，2026 年 4 月）。
+      </div>
+    </div>
+
+    <div class="card" style="border-color:var(--line-gold);background:rgba(201,164,92,.07)">
+      <div class="grid g2" style="gap:5mm;align-items:start">
+        <div>
+          <h3 style="margin-bottom:1.6mm">这笔钱，多数是一个家庭的积蓄</h3>
+          <div class="grid g3" style="gap:2.4mm">
+            <div>
+              <div style="font-size:14.4pt;font-weight:800;color:var(--ink);line-height:1.1;font-variant-numeric:tabular-nums">748.96<span style="font-size:8.6pt">万户</span></div>
+              <div class="tiny" style="margin-top:.7mm">浙江省个体工商户在册总量，占全省经营主体的 64.36%</div>
+            </div>
+            <div>
+              <div style="font-size:14.4pt;font-weight:800;color:var(--ink);line-height:1.1;font-variant-numeric:tabular-nums">1.92<span style="font-size:8.6pt">人</span></div>
+              <div class="tiny" style="margin-top:.7mm">户均吸纳就业人数 —— 绝大多数是一家人的生意</div>
+            </div>
+            <div>
+              <div style="font-size:14.4pt;font-weight:800;color:var(--red);line-height:1.1;font-variant-numeric:tabular-nums">78.20<span style="font-size:8.6pt">%</span></div>
+              <div class="tiny" style="margin-top:.7mm">正常经营率，对应约两成个体工商户不在正常经营状态</div>
+            </div>
+          </div>
+          <div class="tiny" style="color:var(--muted);margin-top:1.6mm">
+            数据来源：浙江省市场监督管理局《2025 年度个体经济形势分析报告》，2026 年 1 月发布。
+          </div>
+        </div>
+        <div style="border-left:.8pt solid var(--line-gold);padding-left:5mm">
+          <p class="small" style="margin-bottom:0">
+            三十万元上下的开店投入，对一家一户来说，往往就是几年攒下的本金。
+            租金一交、装修一动、合同一签，这笔钱就转成了沉没成本。
+            品类可以换、价格可以调、推广可以加，
+            <b class="gold">唯独位置签下去就改不了</b>。
+            把这件事算在签字之前，是本项目全部功能的落点。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:var(--line-gold);background:rgba(201,164,92,.09)">
+      <div class="two-col" style="gap:6mm;align-items:center">
+        <div>
+          <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">项目的落点</div>
+          <div style="font-size:11.4pt;font-weight:800;margin-top:1.2mm;line-height:1.45">
+            让一个人在签字之前，把这个铺位算清楚
+          </div>
+        </div>
+        <div class="small">
+          这一亿多户个体经营者，撑起了城市里大部分早餐铺、奶茶店、便利店和理发店。
+          他们普遍没有调研团队，签合同前能拿到的参考资料，常常是房东的一句"这个位置很旺"。
+          址南针要做的事很具体：把铺位、品类、租金摆到同一张表上算一遍，
+          告诉店主这笔钱多久能回来、最坏会亏多少。
+        </div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">03</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">TARGET USERS</span></div>
+      <h2><span class="no">02</span>为它掏钱的是谁，卡在哪一步</h2>
+      <p class="lead" style="margin-top:1.6mm">
+        他们是这个产品的全部服务对象。三类人的资源、经验和手里的数据各不相同，
+        但都卡在同一个动作上：面对一个具体的铺位和一份具体的租金，判断不出该不该签。
+      </p>
+    </div>
+
+    <!-- 三类用户视觉带（2026-09-21）：原来这一页只有文字卡片 + 一张表，
+         评委第一眼抓不到"到底服务谁"。这里用图标 + 色条把三类人并排立起来，
+         并让三支箭头汇到同一个动作上 —— 这一页的结论，一眼就能看懂。 -->
+    <div class="users3">
+      <div class="u3 a">
+        <div class="u3-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="7.5" r="3.6"/><path d="M4.8 20.5c0-3.9 3.2-6.4 7.2-6.4s7.2 2.5 7.2 6.4"/>
+          </svg>
+        </div>
+        <div class="u3-t">品牌加盟者</div>
+        <div class="u3-s">第一类 · 主力用户</div>
+        <div class="u3-d">已选定品牌、资金到位。品牌方给的"选址指导"常常只是一张地图截图。</div>
+      </div>
+      <div class="u3 b">
+        <div class="u3-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8.6" cy="8" r="3.1"/><path d="M2.6 19.6c0-3.4 2.7-5.6 6-5.6s6 2.2 6 5.6"/>
+            <path d="M16.4 5.2a3.1 3.1 0 0 1 0 5.8"/><path d="M18 14.4c2 .8 3.4 2.6 3.4 5.2"/>
+          </svg>
+        </div>
+        <div class="u3-t">品牌拓展方</div>
+        <div class="u3-s">第二类</div>
+        <div class="u3-d">10 家店以下的小连锁，一次开两三家，判断标准留在创始人脑子里。</div>
+      </div>
+      <div class="u3 c">
+        <div class="u3-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 9.5 5.6 4h12.8L20 9.5"/>
+            <path d="M4 9.5v10h16v-10"/><path d="M9.6 19.5v-6h4.8v6"/>
+          </svg>
+        </div>
+        <div class="u3-t">自创品牌 · 已开店店主</div>
+        <div class="u3-s">第三类</div>
+        <div class="u3-d">前者没有参照物；后者有真实流水，想知道还能撑多久。</div>
+      </div>
+      <div class="u3-join">
+        <span class="u3j-l">三类人卡在<strong>同一个动作</strong></span>
+        <span class="u3j-q">面对一个具体的铺位 + 一份具体的租金 —— <strong>签，还是不签？</strong></span>
+      </div>
+    </div>
+
+    <div class="card g" style="border-width:1pt">
+      <div style="display:flex;align-items:baseline;gap:2.6mm;flex-wrap:wrap">
+        <span class="tag gold">第一类 · 主力用户</span>
+        <h3 style="margin-bottom:0">品牌加盟者</h3>
+        <span class="tiny" style="color:var(--muted)">已选定品牌、资金到位，卡在铺位这一环</span>
+      </div>
+      <div class="grid g3" style="gap:3.4mm;margin-top:2.2mm">
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink);margin-bottom:.8mm">他的处境</div>
+          <div class="tiny">
+            品牌方在招商阶段承诺的"开店选址指导"，落到执行层往往只是几处地址加一张地图截图。
+            铺位要在短期内定下来，他没有第二意见可以问。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink);margin-bottom:.8mm">他要的答案</div>
+          <div class="tiny">
+            这个铺位<b>对我这个品牌</b>值多少钱；品牌方给的地址，按我的成本结构，
+            这个租金扛不扛得住；如果要谈，谈到哪里为止。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink);margin-bottom:.8mm">为什么这是最大一类</div>
+          <div class="tiny">
+            加盟把"选品牌"这件事标准化了，把"选铺位"这件事留给了加盟者自己。
+            一个人第一次开店，恰好要在最不熟悉的环节上做最重的决定。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card warn" style="padding:2.8mm 3.4mm">
+      <div class="tiny" style="font-weight:800;color:var(--red);margin-bottom:1.2mm">
+        这一类需求在司法案例里被反复记录
+      </div>
+      <div class="two-col" style="gap:4mm">
+        <div class="tiny">
+          南京市雨花台区人民法院公布的一起典型案例中，加盟者支付了
+          <b>30 万元加盟费和 1 万元保证金</b>，合同写明公司提供"开店选址"在内的全方位指导；
+          实际拿到的"选址指导"，是从网上搜索热门商圈后直接发来的一张地图截图（2020 年）。
+        </div>
+        <div class="tiny">
+          北京市西城区人民法院在特许经营纠纷通报中列举过同类情形：合同约定
+          <b>"特许人仅负责提供选址建议"</b>，实际提供的地址则"地段差、租金高、超预算"，
+          起不到辅助决策的作用。天津、济南等地法院也审理过特许人未履行选址义务的案件。
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="gap:3.4mm">
+      <div class="card">
+        <div style="display:flex;align-items:baseline;gap:2.4mm;flex-wrap:wrap">
+          <span class="tag ink">第二类</span>
+          <h3 style="margin-bottom:0">品牌拓展方</h3>
+        </div>
+        <div class="tiny" style="margin:1.4mm 0">手里有自己的品牌，要开新店，团队里没有专职选址岗（多数是 10 家店以下的小连锁）。</div>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li><b>处境</b>：一次开两三家，靠创始人自己跑、靠熟人推荐，
+              判断标准留在个人脑子里，换个人就复现不出来</li>
+          <li><b>要的答案</b>：能批量、快速出一份口径统一的铺位评估，
+              把"为什么选这个铺"讲成可以交给团队的话</li>
+          <li><b>痛点形状</b>：单店评估勉强能做，批量和口径统一做不到</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:baseline;gap:2.4mm;flex-wrap:wrap">
+          <span class="tag ink">第三类</span>
+          <h3 style="margin-bottom:0">自创品牌散户 · 已开店店主</h3>
+        </div>
+        <div class="tiny" style="margin:1.4mm 0">前者没有品牌背书也没有可比参照；后者手里有真实流水，想知道钱花在哪、还能撑多久。</div>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li><b>自创品牌</b>：从零起步，连"这个品类在这个商圈的天花板在哪"都没有参照物</li>
+          <li><b>已开店店主</b>：要成本项拆解、盈亏平衡流水、租金余量与安全边际，
+              判断当前流水还能跌多久</li>
+          <li><b>共同缺口</b>：手里没有一套把自己的成本结构和外部客流对上的算法</li>
+        </ul>
+      </div>
+    </div>
+
+
+    <div class="card ink" style="padding:3.4mm 4mm">
+      <div class="grid g2" style="gap:5mm;align-items:center">
+        <div>
+          <div class="tiny" style="letter-spacing:.1em;color:#f0d9a6;font-weight:800">三类用户的共同缺口</div>
+          <div style="font-size:11pt;font-weight:800;color:#f7f3e4;margin-top:1.4mm;line-height:1.5">
+            他们缺的是同一件东西：<br>一个能把「位置」和「成本」放在一起算的参照系
+          </div>
+        </div>
+        <div style="border-left:.8pt solid rgba(229,201,138,.3);padding-left:5mm">
+          <div class="tiny" style="color:#d5e2e1">
+            三类人要的结论完全一致 ——
+            <b style="color:#f0d9a6">这个铺位、这个品类、这个租金，签下去能不能活、多久回本、最坏亏多少。</b>
+            差别只在于他们各自要拿这个结论去做什么决定：签还是不签、报多少价、加不加推广预算。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">04</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">REQUIREMENT ANALYSIS</span></div>
+      <h2><span class="no">03</span>从起念到签字，钱漏在哪一步</h2>
+      <p class="lead" style="margin-top:1.6mm">
+        我们把一次开店拆成五个阶段，逐段找出用户此刻拿不到、但必须拿到的信息。
+        拆解依据来自三个渠道：对本地商业街的长期观察、各地法院公布的加盟纠纷案例、
+        以及公开的行业统计。需求按"离签约有多近"排序 —— 越靠近签约，需求越硬。
+      </p>
+    </div>
+
+    <div class="stage-flow">
+      <div class="sf-i"><span class="sf-n">①</span><span class="sf-t">定品类</span><span class="sf-s">还没定卖什么</span></div>
+      <div class="sf-a">›</div>
+      <div class="sf-i d1"><span class="sf-n">②</span><span class="sf-t">挑铺位</span><span class="sf-s">手里有几处房源</span></div>
+      <div class="sf-a">›</div>
+      <div class="sf-i d2"><span class="sf-n">③</span><span class="sf-t">谈租金</span><span class="sf-s">房东已经报价</span></div>
+      <div class="sf-a">›</div>
+      <div class="sf-i d3"><span class="sf-n">④</span><span class="sf-t">签约前</span><span class="sf-s">笔递到手上</span></div>
+      <div class="sf-a">›</div>
+      <div class="sf-i d4"><span class="sf-n">⑤</span><span class="sf-t">开业后</span><span class="sf-s">已经在经营</span></div>
+    </div>
+
+    <div>
+      <table style="font-size:8.2pt">
+        <thead><tr>
+          <th style="width:25%">用户此刻的真实问题</th>
+          <th style="width:24%">现在他能拿到的答案</th>
+          <th>需要补齐的信息</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>我这个品类，放在这片商圈吃得开吗？</td>
+            <td>品牌方的通用话术、同乡的经验</td>
+            <td>本地该品类的店铺密度、客群匹配度、四个品类的净利对比</td>
+          </tr>
+          <tr>
+            <td>这几处里，哪几个值得实地去看？</td>
+            <td>中介推荐、自己扫街、58 上的挂牌信息</td>
+            <td>铺位周边的需求池规模、同品类分流强度、按距离衰减后的捕获份额</td>
+          </tr>
+          <tr class="hl">
+            <td>他报的价，我该不该还？还到多少？</td>
+            <td>横向比同类挂牌价、问同行"大概什么水平"</td>
+            <td><b>按自己的成本结构反解出的租金上限</b> —— 一个可谈判的具体金额</td>
+          </tr>
+          <tr class="hl">
+            <td>签下去多久回本？最坏会亏多少？</td>
+            <td>品牌方给的投资额区间与"平均回本周期"</td>
+            <td>三档情景下的流水、净利、回本周期，以及结论对假设是否稳健</td>
+          </tr>
+          <tr>
+            <td>现在的流水健康吗？还能跌多久？</td>
+            <td>外卖平台后台、自己的记账本</td>
+            <td>11 项成本拆解、盈亏平衡流水、租金余量、安全边际与品牌对标</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid g2" style="gap:3.4mm">
+      <div class="card g">
+        <h3>功能性需求：要算出什么</h3>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li><b>一个金额</b>：盈亏平衡月租（硬天花板）与回本达标月租上限（谈判目标价），
+              并给出与房东报价的差额</li>
+          <li><b>一条硬约束</b>：月净利 ≤ 0 或回本周期 &gt; 24 个月时，经营评分封顶 59，
+              结论改写为「位置好 · 账算不过来」</li>
+          <li><b>一段理由</b>：每个维度分都引用周边具体 POI，每个数字带来源与取证时间</li>
+          <li><b>一个边界</b>：口径区间、结论稳健性判定、已知局限同时给出</li>
+          <li><b>一条出路</b>：五阶段各自对应的推进动作 —— 换品类、换铺位、压租金、缩小规模、加大推广</li>
+        </ul>
+      </div>
+      <div class="card g">
+        <h3>非功能性需求：要算得可信</h3>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li><b>可复现</b>：同一组输入必须得到同一组输出。报价与取数走固定参数，
+              换个时间再算，结果应当一致</li>
+          <li><b>可追溯</b>：报告里的每个数字都能回溯到数据来源与取证时间</li>
+          <li><b>零门槛</b>：目标用户看不懂数据看板，交互入口要能接受一句人话</li>
+          <li><b>离线可用</b>：知识库、POI 库、评分引擎、<b>步行路网距离库</b>全部落在本地；
+              同一铺位重算不依赖网络（换铺位首次需联网取一次路网距离）</li>
+          <li><b>失败可见</b>：数据取不到时显式说明，结论对假设敏感时给出警告，
+              模型不可用时用规则解读兜底出完整结论</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card amb" style="padding:2.8mm 3.4mm">
+      <div class="grid g3" style="gap:4mm">
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">越靠近签约越硬</div>
+          <div class="tiny" style="margin-top:.6mm">④ 签约前的需求容错最小；① 定品类阶段允许试错，
+            结论可以只是一份四品类对比。</div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">越不可逆越优先</div>
+          <div class="tiny" style="margin-top:.6mm">位置、面积、租金三项落定之后就难以更改，
+            其余需求都为这三项服务。</div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">越依赖外部数据越要标口径</div>
+          <div class="tiny" style="margin-top:.6mm">客群、竞争、行情来自外部，
+            取数失败或口径不一时必须显式说明。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote">
+      <span class="q">"</span>五个阶段里，最贵的一步是第 ④ 步 ——
+      笔递到手上那一刻，用户需要的是一个能直接支持他做决定的数字，外加这个数字的可信度。
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">05</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">FUNCTIONAL DESIGN</span></div>
+      <h2><span class="no">04</span>要拍板，先得有这十一项</h2>
+      <p class="lead" style="margin-top:1.6mm">
+        功能清单按"用户要的结论"组织，十一条功能各自对应明确的输入、输出与覆盖阶段，
+        每一条都能追到代码落点，不存在只在文档里存在的功能。
+      </p>
+    </div>
+
+    <div>
+      <table style="font-size:7.9pt">
+        <thead><tr>
+          <th style="width:16%">功能模块</th>
+          <th style="width:20%">解决的问题</th>
+          <th>关键能力</th>
+          <th style="width:11%" class="c">覆盖阶段</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="tico">💬</span><b>意图理解</b></td><td>用户不会填表，只会说一句人话</td>
+              <td>一句话解析出品类 / 地点 / 面积 / 租金 / 预算五项参数；缺的那一项弹一张卡补齐，<b>不出现表单</b></td>
+              <td class="c">入口</td></tr>
+          <tr class="hl"><td><span class="tico">🎯</span><b>选址评估</b></td><td>这个铺位值不值得签</td>
+              <td>Huff 引力模型四维评分 ＋ <b>反解租金天花板</b> ＋ 非补偿性一票否决</td>
+              <td class="c">②③④</td></tr>
+          <tr><td><span class="tico">🧮</span><b>品类反推</b></td><td>铺位看好了，卖什么最赚钱</td>
+              <td>给定铺位，对四个品类逐一套算净利并排序</td>
+              <td class="c">①</td></tr>
+          <tr><td><span class="tico">⚔️</span><b>竞品分析</b></td><td>这一带的竞争挤不挤</td>
+              <td>竞品引力比、口碑分、人均价格带、HHI、连锁占比</td>
+              <td class="c">②</td></tr>
+          <tr><td><span class="tico">🤝</span><b>租金谈判</b></td><td>房东报了价，怎么还</td>
+              <td>承受力上限 ＋ 结构化筹码 ＋ 分场景话术，差额锚来自实测行情</td>
+              <td class="c">③</td></tr>
+          <tr><td><span class="tico">📷</span><b>门头识别</b></td><td>铺子现场情况到底如何</td>
+              <td>VLM 识别装修档次 / 门头可见度 / 卫生观感，折算形象分并入总分</td>
+              <td class="c">②</td></tr>
+          <tr><td><span class="tico">📋</span><b>政策与证照</b></td><td>办证走什么流程、有没有补贴</td>
+              <td>本地语料逐条给出原文出处与可点击链接</td>
+              <td class="c">④</td></tr>
+          <tr class="hl"><td><span class="tico">🩺</span><b>已开店诊断</b></td><td>现在这盘生意健不健康</td>
+              <td>11 项成本拆解、安全边际、租金余量、品牌对标（用真实流水，不用模型估）</td>
+              <td class="c">⑤</td></tr>
+          <tr><td><span class="tico">🏷️</span><b>加盟品牌信息</b></td><td>这个牌子要投多少、值不值</td>
+              <td>加盟费三态（收取 / 明确不收 / 查不到）、物料率、品牌溢价可信度</td>
+              <td class="c">①④</td></tr>
+          <tr><td><span class="tico">🔍</span><b>模型审计</b></td><td>这些数字凭什么信</td>
+              <td>实时披露样本量、口径、数据来源与不确定区间</td>
+              <td class="c">全程</td></tr>
+          <tr><td><span class="tico">📄</span><b>报告与对比</b></td><td>要把结论带走、要横向比较</td>
+              <td>一键导出 PDF；勾选 2–4 个历史分析生成多方案对比看板</td>
+              <td class="c">④⑤</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>交互入口：把十一条功能藏在一句话后面</h3>
+      <div class="grid g4" style="gap:2.8mm;margin-top:1.4mm">
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">一句话发起</div>
+          <div class="tiny">"我想在杭州武林广场开奶茶店，30 平米，月租 8000，预算 20 万"，
+            自动解析五项参数</div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">点卡片即分析</div>
+          <div class="tiny">铺子还没定，自动切分支抓取真实在租店铺并卡片化，
+            <b>点卡片直接启动完整分析</b></div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">专家条恒跟随</div>
+          <div class="tiny">输入框上方常驻九位专家，切换走静默路径，
+            <b>不产生多余对话气泡</b></div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">三栏工作台</div>
+          <div class="tiny">左操作中枢、中推理过程、右结论工作台；
+            评分卡 / 雷达图 / 热力图 / 对比表 / <b>仿真看板</b>全部自研</div></div>
+      </div>
+    </div>
+
+    <div class="card g">
+      <h3>仿真大屏：把"人怎么走到你门口"演出来</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm;margin-top:1mm">
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">① 自绘，只画关系</div>
+          <div class="tight tiny">不叠底图；只留<b>马路骨架</b>与三类节点：人流来源／本铺／竞品</div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">② 小人数量 = 客流</div>
+          <div class="tight tiny">来源权重取自 <b>profile 目标客群权重</b>（与需求池 D 同一套）</div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">③ 去向 = 竞品分流</div>
+          <div class="tight tiny">按 Huff 引力分流、<b>持续循环走动</b>；每个店铺都有路</div></div>
+      </div>
+    </div>
+
+    <div class="card amb">
+      <h3>主动质疑：把该提醒的话做进流程里</h3>
+      <table style="font-size:8pt;margin-top:1.2mm">
+        <tbody>
+          <tr><td style="width:44%">竞争压力 &lt; 30</td>
+              <td>必警告"该位置同品类已饱和"，并引用竞品引力比</td></tr>
+          <tr><td>客群匹配度 &lt; 40 且竞争压力 &lt; 40</td>
+              <td>提示<b>品类错配</b>，建议考虑换业态或换铺位</td></tr>
+          <tr><td>租金承受力 &lt; 40</td>
+              <td>必警告盈亏风险，并给出可承受的租金上限</td></tr>
+          <tr><td>目标客群引力累计 = 0</td>
+              <td>提示"数据稀疏，建议人工复核"，并说明缺的是哪一类数据</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">06</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">COMPETITIVE LANDSCAPE</span></div>
+      <h2><span class="no">05</span>同样的铺位，别处给得出什么</h2>
+      <p class="lead" style="margin-top:1.6mm">
+        创业者做一次选址决策，手上能用的选项并不多。这一页把它们逐项摊开，
+        看每一类分别能回答什么、留下什么需要自己补。
+      </p>
+    </div>
+
+    <div>
+      <table class="vsx">
+        <thead><tr>
+          <th class="k" style="width:27%">创业者手上的选项</th>
+          <th>这一带有多少人流</th>
+          <th>我的成本结构</th>
+          <th>这租金多久回本</th>
+          <th>该还到多少</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="k">地图与生活服务平台<span>美团、高德、各类商圈看板</span></td>
+              <td class="y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
+          <tr><td class="k">招商方与中介<span>手里有房源的一方</span></td>
+              <td class="p">部分</td><td class="n">✗</td><td class="n">✗</td><td class="p">部分</td></tr>
+          <tr><td class="k">加盟品牌方<span>品牌标准与投资额区间</span></td>
+              <td class="p">部分</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
+          <tr><td class="k">通用 AI 对话工具<span>讲道理、理思路、写文案</span></td>
+              <td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
+          <tr class="us"><td class="k">址南针<span>本作品</span></td>
+              <td class="y">✓ 能看</td><td class="y">✓ 能算</td><td class="y">✓ 能算</td><td class="y">✓ 能谈</td></tr>
+        </tbody>
+      </table>
+      <div class="tiny" style="color:var(--muted);margin-top:1.3mm">
+        用上面任何一类工具，最后都得<b>自己补上一套建模能力、一份成本结构、一个租金测算</b> ——
+        而这三样恰好是创业者最缺的。址南针把这一列补齐，并把每个数字的来源与取证时间一起交出来。
+      </div>
+    </div>
+
+    <div class="card g">
+      <h3>址南针多做的四件事</h3>
+      <div class="grid g2" style="gap:3.4mm;margin-top:1.4mm">
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">① 一个金额</div>
+          <div class="tiny" style="margin-top:.8mm">
+            把"贵不贵"换算成一个可以直接拿去谈判的数 ——
+            盈亏平衡月租 <b class="gold">¥19,950/月</b>、回本达标月租上限 <b class="gold">¥17,200/月</b>，
+            并与房东报价相减得到可以谈的差额。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">② 一条硬约束</div>
+          <div class="tiny" style="margin-top:.8mm">
+            月净利 ≤ 0 或回本周期 &gt; 24 个月时，经营评分封顶 59，
+            结论改写为「<b>位置好 · 账算不过来</b>」——
+            位置分再高，也抬不动一条算不过来的账。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">③ 一段理由</div>
+          <div class="tiny" style="margin-top:.8mm">
+            每个维度分都引用周边具体 POI（"周边 3 所大学、2 个写字楼"），
+            每个数字带来源与取证时间，报告可导出存档。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">④ 一个边界</div>
+          <div class="tiny" style="margin-top:.8mm">
+            口径区间、结论稳健性判定、已知局限同时给出。
+            数据取不到就说明取不到，结论不稳就打出稳健性四档警告（稳健／比较稳健／比较不稳健／不稳健）。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>同类工具跨不过的三道坎</h3>
+      <div class="grid g3" style="gap:3.4mm;margin-top:1.4mm">
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">① 本地数据</div>
+          <div class="tiny" style="margin-top:.8mm">
+            4.4 万条浙江 POI 与 74 条政策、行业语料沉淀在本地，断网也能算出结论。
+            通用工具手上没有这套底料，只能给一般性建议。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">② 口径纪律</div>
+          <div class="tiny" style="margin-top:.8mm">
+            客单价取"每单金额"、数据来源分 A/B/C 三级不混用、品牌级数据覆盖品类级。
+            口径不一致时并列呈现，不合成一个数。
+          </div>
+        </div>
+        <div>
+          <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">③ 验证闭环</div>
+          <div class="tiny" style="margin-top:.8mm">
+            离线门禁断言加实机探针双层校验，改一处口径要同步全部引用面。
+            结论可复现：同一组输入，任何时间再算都是同一组输出。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card ink" style="padding:3.4mm 4mm">
+      <div class="grid g2" style="gap:5mm;align-items:center">
+        <div>
+          <div class="tiny" style="letter-spacing:.1em;color:#f0d9a6;font-weight:800">定位</div>
+          <div style="font-size:11.4pt;font-weight:800;color:#f7f3e4;margin-top:1.4mm;line-height:1.5">
+            面向看不懂数据看板的个体经营者，<br>输出一个能拍板的判断
+          </div>
+        </div>
+        <div style="border-left:.8pt solid rgba(229,201,138,.3);padding-left:5mm">
+          <div class="tiny" style="color:#d5e2e1">
+            市面上的商圈数据服务按订阅收费，使用门槛是为"看得懂数据的人"设计的。
+            址南针把入口降到一句话，把输出提到"该不该开、最多付多少"这一层，
+            服务的是那些原本被排除在专业选址决策之外的个体创业者。
+            交互上，用户不面对表单：一句话进，缺的参数用一张卡补齐；成本上，目标是把专业选址评估做成个体经营者用得起的一项服务。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>贰 · 判断</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">07</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">CORE INNOVATION 1</span>
+        <span class="pill">竞价租金 BID-RENT</span></div>
+      <h2><span class="no">06</span>一间店赚不赚钱，从成本结构倒着算</h2>
+    </div>
+
+    <div class="grid g2" style="gap:4mm">
+      <div class="card" style="border-color:rgba(14,53,58,.14)">
+        <div class="tiny" style="letter-spacing:.1em;color:var(--muted);font-weight:800">市面通行做法</div>
+        <div style="font-size:11.4pt;font-weight:700;margin:1.4mm 0">问：这个租金贵不贵？</div>
+        <ul class="tight small" style="margin-bottom:0">
+          <li>输出一个<b>分数</b>或一个<b>热度指数</b></li>
+          <li>把「贵不贵」交回给用户自己判断</li>
+          <li>用户没有基准，只能横向比中介报价</li>
+          <li class="red">结论无法直接指导签约动作</li>
+        </ul>
+      </div>
+      <div class="card g">
+        <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">址南针</div>
+        <div style="font-size:11.4pt;font-weight:700;margin:1.4mm 0">从利润倒推：你最多能付多少</div>
+        <ul class="tight small" style="margin-bottom:0">
+          <li>算出<b>不可突破的天花板</b>（超过即亏）</li>
+          <li>再算<b>可谈判的目标价</b>（回本达标线）</li>
+          <li>与房东报价直接相减 = <b>谈判空间</b></li>
+          <li class="green">结论是一个<b>具体金额</b></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card ink" style="padding:4mm">
+      <div style="display:flex;align-items:center;gap:6mm;justify-content:space-between">
+        <div style="flex:1">
+          <div class="tiny" style="color:#9db3b6;letter-spacing:.1em;font-weight:800;margin-bottom:1.6mm">
+            实测案例 · 杭州湖滨 in77 · 30㎡ 奶茶 · 蜜雪冰城 · 房东报价 ¥25,000/月</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4mm">
+            <div>
+              <div class="tiny" style="color:#9db3b6">盈亏平衡月租（硬天花板）</div>
+              <div style="font-size:19pt;font-weight:800;color:#7ee0b8;font-variant-numeric:tabular-nums">
+                ¥19,950<span style="font-size:9pt">/月</span></div>
+            </div>
+            <div>
+              <div class="tiny" style="color:#9db3b6">回本达标月租上限（目标价）</div>
+              <div style="font-size:19pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">
+                ¥17,200<span style="font-size:9pt">/月</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:0 0 46mm;border-left:.8pt solid rgba(229,201,138,.3);padding-left:6mm;text-align:center">
+          <div class="tiny" style="color:#9db3b6;margin-bottom:1mm">房东报价高出天花板</div>
+          <div style="font-size:26pt;font-weight:800;color:#fda4a4;line-height:1;font-variant-numeric:tabular-nums">
+            ¥5,050</div>
+          <div class="tiny" style="color:#9db3b6;margin-top:1.4mm;line-height:1.4">
+            这是一个<b style="color:#f0d9a6">可谈判的差额</b>，<br>可以拿着它去和房东谈</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:3mm 3.6mm">
+      <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">从需求池到租金上限的推导链条</div>
+      <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:2.4mm;margin-top:1.8mm">
+        <div style="border-left:1.6pt solid var(--line-gold);padding-left:2.4mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">① 需求池 D</div>
+          <div class="tiny" style="margin-top:.5mm">铺位半径内、归属于该品类的客群规模</div>
+        </div>
+        <div style="border-left:1.6pt solid var(--line-gold);padding-left:2.4mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">② 捕获份额 P</div>
+          <div class="tiny" style="margin-top:.5mm">Huff 引力模型：按距离衰减与竞品分流，算出你能拿到多少</div>
+        </div>
+        <div style="border-left:1.6pt solid var(--line-gold);padding-left:2.4mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">③ 月流水</div>
+          <div class="tiny" style="margin-top:.5mm">D × P 折算成单量，再乘以该品类每单金额</div>
+        </div>
+        <div style="border-left:1.6pt solid var(--line-gold);padding-left:2.4mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">④ 成本结构</div>
+          <div class="tiny" style="margin-top:.5mm">11 项成本逐项扣减，得到这家店的月净利</div>
+        </div>
+        <div style="border-left:1.6pt solid var(--line-gold);padding-left:2.4mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">⑤ 反解上限</div>
+          <div class="tiny" style="margin-top:.5mm">对租金二分反解，求出净利归零与回本达标两条线</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="gap:4mm">
+      <div>
+        <h3>两个临界点，回答两个不同的问题</h3>
+        <table style="font-size:8pt">
+          <tbody>
+            <tr><td style="width:38%"><b>盈亏平衡月租</b></td>
+                <td>月净利 = 0 的租金 —— <b class="red">再高一元就是亏</b>，这是绝对红线</td></tr>
+            <tr><td><b>回本达标月租上限</b></td>
+                <td>回本周期 = 24 个月的租金 —— <b class="green">能签得舒服的价格</b>，这是谈判目标</td></tr>
+            <tr><td><b>免租月净利</b></td>
+                <td>用来区分「<b>租金谈下来就能救</b>」与「<b>这铺子根本救不了</b>」</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card g">
+        <h3>怎么算出来的 —— 为什么可信</h3>
+        <ul class="tight small" style="margin-bottom:0">
+          <li>理论依据：<b>竞价租金理论（bid-rent）</b>——一块地值多少钱，取决于它能产生的<b>剩余</b></li>
+          <li>实现：对租金<b>二分法反解</b>，零外部 API，结果<b>确定可复现</b></li>
+          <li>双算法互校：自解 vs 引擎独立二分，实测差 <b class="gold">¥13</b>，已固化为回归断言</li>
+          <li>不引外部经验阈值（如"安全边际≥20%"），改用<b>自洽检验</b>：流水代回模型净利必须≈0</li>
+        </ul>
+      </div>
+    </div>
+
+        <div class="grid g2" style="gap:4mm">
+      <div class="card">
+        <h3>「租金不超过营业额百分之几」这类法则，在这里会失效</h3>
+        <p class="small" style="margin-bottom:0">
+          同一个租金占比，放在毛利率不同的品类上，对应的存活线并不相同。
+          奶茶、烘焙、正餐的成本结构差得远，用一个通用百分比去卡，
+          要么放过一个迟早亏钱的铺位，要么否掉一个本来能签的位置。
+          址南针的做法是把租金代进这家店自己的成本结构里反解，
+          得到的是"这家店、这个品类"的答案。
+        </p>
+      </div>
+      <div class="card g">
+        <h3>议价不只是压月租</h3>
+        <ul class="tight small" style="margin-bottom:0">
+          <li><b>免租期</b>：装修期的免租月数，直接折算成等效月租</li>
+          <li><b>押付方式</b>：押付档位往后压一档，降低签约时的一次性支出</li>
+          <li><b>递增条款</b>：每年递增的比例往后让一档，差额在第三年之后才真正显形</li>
+          <li><b>转让费</b>：按合同剩余年限摊成月成本，与租金上限放在一起比</li>
+        </ul>
+      </div>
+    </div>
+
+<div class="quote" style="">
+      <span class="q">"</span>它给出的东西很具体：一个<b>不可突破的天花板</b> + 一个<b>可谈判的目标价</b>。
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>贰 · 判断</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">08</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">CORE INNOVATION 2</span>
+        <span class="pill">满意化 SATISFICING</span></div>
+      <h2><span class="no">07</span>位置分再高，账算不过来就不能签</h2>
+    </div>
+
+    <div class="card warn" style="padding:3.4mm 4mm">
+      <div style="display:flex;gap:5mm;align-items:flex-start">
+        <div style="flex:0 0 20mm;text-align:center">
+          <div style="font-size:20pt;font-weight:800;color:var(--red);line-height:1">80.9</div>
+          <div class="tiny">早期模型的总分</div>
+        </div>
+        <div style="flex:1">
+          <h3 class="red">这个坑是被真实数据打出来的</h3>
+          <p class="small" style="margin-bottom:0">
+            项目早期的评分引擎用的是市面上通行的<b>加权求和</b>。加权是<b>补偿性</b>的——
+            一个维度极低，可以被别的高分补回来。实测中真的出现了这样的结果：
+            <b class="red">总分 80.9、系统判定「推荐」，而该铺位的月净利是负的。</b>
+            一个让用户亏钱的铺位，被评分体系洗白了。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="vs" style="margin-top:1mm">
+      <div class="card" style="border-color:rgba(185,28,28,.28)">
+        <div class="tag red">补偿性 · 加权求和</div>
+        <div style="margin:1.6mm 0">
+          <div class="wbar"><span class="wn">位置分</span><span class="wt"><i style="width:95%"></i></span><span class="wv">95<em>×.35</em></span></div>
+          <div class="wbar"><span class="wn">竞争分</span><span class="wt"><i style="width:100%"></i></span><span class="wv">100<em>×.25</em></span></div>
+          <div class="wbar"><span class="wn">交通分</span><span class="wt"><i style="width:82%"></i></span><span class="wv">82<em>×.25</em></span></div>
+          <div class="wbar hot"><span class="wn">租金分</span><span class="wt"><i style="width:21%"></i></span><span class="wv">21<em>×.15</em></span></div>
+          <div class="tiny" style="color:var(--red);margin-top:1mm">
+            ↑ 租金分只有 <b>21</b>，被上面三项的高分 <b>补掉了</b></div>
+        </div>
+        <div class="divider"></div>
+        <div class="stat-in"><span class="l">结论</span>
+          <span class="v red">推荐 &nbsp;·&nbsp; 月净利 −¥5,327</span></div>
+      </div>
+      <div class="mid">VS</div>
+      <div class="card ok" style="border-color:rgba(15,122,85,.3)">
+        <div class="tag green">非补偿性 · 一票否决</div>
+        <div style="margin:1.6mm 0">
+          <div class="wbar"><span class="wn">位置分</span><span class="wt"><i style="width:95%"></i></span><span class="wv">95<em>×.35</em></span></div>
+          <div class="wbar"><span class="wn">竞争分</span><span class="wt"><i style="width:100%"></i></span><span class="wv">100<em>×.25</em></span></div>
+          <div class="wbar"><span class="wn">交通分</span><span class="wt"><i style="width:82%"></i></span><span class="wv">82<em>×.25</em></span></div>
+          <div class="wbar"><span class="wn">租金分</span><span class="wt"><i style="width:21%"></i></span><span class="wv">21<em>×.15</em></span></div>
+          <div class="gate">
+            <div class="gate-bar">闸门：<b>月净利 ≤ 0 → 直接否决</b></div>
+            <div class="tiny" style="margin-top:.9mm;color:#0f7a55">
+              ↑ 加权分照算，但<b>它说了不算</b> —— 总分再高也不放行</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="stat-in"><span class="l">结论</span>
+          <span class="v green">位置好 · 账算不过来</span></div>
+      </div>
+    </div>
+
+    <div class="card ink" style="padding:3.6mm 4mm">
+      <div class="grid g2" style="gap:5mm;align-items:center">
+        <div>
+          <div class="tiny" style="color:#9db3b6;letter-spacing:.1em;font-weight:800;margin-bottom:1.6mm">
+            规则（双条件，任一触发即否决）</div>
+          <div class="mono" style="font-size:10.4pt;color:#f0d9a6;line-height:1.9">
+            月净利 ≤ 0 &nbsp;<b style="color:#7ee0b8">或</b>&nbsp; 回本周期 &gt; 24 个月<br>
+            ⇒ 经营评分<b style="color:#fda4a4">封顶 59</b>，结论改写为<br>
+            &nbsp;&nbsp;&nbsp;「位置好 · 账算不过来」
+          </div>
+        </div>
+        <div style="border-left:.8pt solid rgba(229,201,138,.3);padding-left:5mm">
+          <div class="tiny" style="color:#9db3b6;margin-bottom:1.4mm">理论出处与现实依据</div>
+          <p class="tiny" style="color:#d5e2e1;margin-bottom:1.4mm">
+            决策科学中的<b style="color:#f7f3e4">满意化（satisficing, Herbert Simon）</b>——
+            真实创业者的决策顺序是<b style="color:#f7f3e4">先过生死线，再比好坏</b>。
+          </p>
+          <p class="tiny" style="color:#d5e2e1;margin-bottom:0">
+            这与"选址是不可逆决策"完全一致：不可逆的决策，第一问永远是<b style="color:#f7f3e4">会不会死</b>；第二问才轮到<b>哪个更好</b>。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>为避免自相矛盾，结论做双轴展示</h3>
+      <table>
+        <thead><tr><th style="width:24%">轴</th><th style="width:32%">比较对象</th><th>回答的问题</th></tr></thead>
+        <tbody>
+          <tr><td><b>位置分结论</b></td><td>同类铺位横向比较</td><td>「这个位置的<b>流量潜力</b>怎么样」——五维加权</td></tr>
+          <tr class="hl"><td><b>综合结论</b></td><td>经营可行性硬约束</td><td>「<b>这笔账算不算得过来</b>」——含一票否决</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:1.4mm">
+        两轴并列呈现，<b class="red">不允许出现「位置好 + 经营高分」却亏钱的自相矛盾展示</b>。
+      </p>
+    </div>
+
+    <div class="card amb" style="padding:2.6mm 3.2mm">
+      <div class="grid g2" style="gap:4mm">
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">阈值为什么取 24 个月</div>
+          <div class="tiny" style="margin-top:.5mm">商铺租约普遍三年一签，回本周期超过两年，留给经营调整的窗口就很窄。
+            这条线回答的是"这个租金能不能签"，与"这个位置值不值得抢"分开回答。</div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">封顶为什么是 59 分</div>
+          <div class="tiny" style="margin-top:.5mm">60 分是通用的及格线。封顶 59 分，
+            让"账算不过来"这件事在分数上直接读得出来，不必翻到结论段才发现。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote" style="">
+      <span class="q">"</span>位置决定流量的上限，<b>净利润</b>决定能不能活到兑现那天。位置再好，账算不过来也不能签。
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">09</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">ENGINEERING RIGOR</span></div>
+      <h2><span class="no">08</span>这套算法凭什么站得住</h2>
+      <p class="lead" style="margin-top:1.6mm">
+        这一页先交代<b>使用的开发工具与技术栈</b>，再讲三条别人通常不做的功课：<b>知道模型什么时候是错的</b>。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:3.6mm">
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>① 拒绝伪严谨：权重是定义式的加权和</h3>
+          <span class="tag gold">方法学</span>
+        </div>
+        <p class="small" style="margin-bottom:1.4mm">
+          总分的定义<b>本身就是</b>四维度分的加权和。用 OLS 去回归它，必然得到
+          <span class="mono">β ≡ w</span>、<span class="mono">R² ≡ 1</span> ——
+          <b class="red">它由定义式直接推出，证明不了模型好坏</b>。
+        </p>
+        <p class="small" style="margin-bottom:0">
+          我们改为做<b>维度分自洽性检验</b>：检验每个维度分与其上游位置变量的关系方向是否符合模型设定。
+          实测三条全部通过，其中<b class="gold">竞争压力与捕获份额相关系数 +0.883</b>，
+          直接印证 Huff 份额映射在真实数据上成立。
+        </p>
+      </div>
+
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>② 拒绝调参：图检索被自己的实验否掉了</h3>
+          <span class="tag ink">对照实验</span>
+        </div>
+        <table style="font-size:7.6pt;margin-bottom:1.4mm">
+          <thead><tr><th>检索器</th><th class="num">标注集 r@1</th><th class="num">标注集 r@3</th><th class="num">多跳对</th></tr></thead>
+          <tbody>
+            <tr class="good"><td><b>classic（现行）</b></td><td class="num"><b>100.0%</b></td><td class="num"><b>100.0%</b></td><td class="num">12.5%</td></tr>
+            <tr><td>graph</td><td class="num">73.2%</td><td class="num">88.7%</td><td class="num">0.0%</td></tr>
+            <tr><td>hybrid (RRF)</td><td class="num">83.1%</td><td class="num">98.6%</td><td class="num">12.5%</td></tr>
+          </tbody>
+        </table>
+        <p class="small" style="margin-bottom:0">
+          <b class="green">结论：图增强在任何一组上都没赢过现行方案 → 暂不融合。</b>
+          方法学要点：融合用 <b>RRF（只用排名）</b>——加权求和多出归一化口径与权重两个可调自由度，
+          而"调参调出正增益"是最容易被质疑的。
+        </p>
+      </div>
+
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>③ 两层验证：挡回退，也挡"其实没生效"</h3>
+          <span class="tag green">17 套件</span>
+        </div>
+        <div class="grid g2" style="gap:2.4mm;margin-bottom:1.4mm">
+          <div class="card" style="padding:2mm 2.4mm;background:rgba(255,255,255,.5)">
+            <div class="tiny" style="font-weight:800;color:var(--ink)">静态断言 · 挡回退</div>
+            <div class="tiny">改坏代码立即变红，零 API、快</div>
+          </div>
+          <div class="card" style="padding:2mm 2.4mm;background:rgba(255,255,255,.5)">
+            <div class="tiny" style="font-weight:800;color:var(--ink)">实机探针 · 挡"没生效"</div>
+            <div class="tiny">真浏览器读计算样式，慢但要</div>
+          </div>
+        </div>
+        <p class="small" style="margin-bottom:0">
+          为什么必须两层：曾出现<b class="red">静态断言全绿、实机上什么都没发生</b>的情况——
+          点击落在被重渲染替换掉的节点上，不报错、也没有任何反应。
+          <b>只有真浏览器能发现这一类问题。</b>
+        </p>
+      </div>
+
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>使用的开发工具与技术栈</h3>
+          <span class="tag ink">全本地可跑</span>
+        </div>
+        <table style="font-size:7.3pt;margin-top:1mm">
+          <tbody>
+            <tr><td style="width:33%"><b>LangGraph ≥ 0.2</b></td>
+                <td>多阶段决策流<b>显式建图</b> —— 可解释、可单测、可定位问题节点</td></tr>
+            <tr><td><b>Chainlit ≥ 2.11</b></td>
+                <td>对话式唯一入口，自研三栏工作台与全部可视化组件</td></tr>
+            <tr><td><b>多 provider 模型链</b></td>
+                <td>方舟／通用／兜底三级 ＋ 独立 VLM，不押单一供应商</td></tr>
+            <tr class="hl"><td><b>SQLite</b> 本地库 12.9 MB</td>
+                <td>4.4 万条浙江 POI，毫秒级响应、单次查询 <b>0 次 API</b></td></tr>
+            <tr><td><b>高德 API ＋ Playwright</b></td>
+                <td>实时接口只作兜底；58 行情抓取供租金谈判交叉验证</td></tr>
+            <tr><td><b>2-gram TF-IDF</b>（纯标准库）</td>
+                <td>74 条政策与知识语料检索，零外部依赖</td></tr>
+            <tr><td><b>Playwright ＋ Pillow</b></td>
+                <td>渲染 PDF 报告，生成地图／雷达图等报告图片</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card g" style="padding:2.0mm 3mm">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3>性能实测：本地预抓取优先的直接回报</h3><span class="tag green">本机实测 · 2026-09-20 · v8 路网口径</span>
+      </div>
+      <div class="kpi4" style="margin-top:1.0mm">
+        <div><div class="v">80<small>ms</small></div>
+          <div class="k">一次完整评分 P50<br><b>缓存命中 · 0 次 API</b></div></div>
+        <div><div class="v">4.5<small>s</small></div>
+          <div class="k">同一铺位<b>首次</b>分析 P50<br>要抓该铺位的步行路网距离</div></div>
+        <div><div class="v">8.3<small>ms</small></div>
+          <div class="k">POI 周边查询 800m P50<br>P95 15.0ms</div></div>
+        <div><div class="v">4.6<small>ms</small></div>
+          <div class="k">知识库检索 P50<br>74 条语料</div></div>
+      </div>
+      <p class="tiny" style="margin:1.2mm 0 0">
+        发起一次分析只需 <b>1 次提交点击</b>。步行路网距离按铺位<b>冻结在本地库</b>：同一铺位重算
+        <b>0 次 API</b>，换铺位首次约 4.5s。数据来源：本机实测，n = 8 ~ 400，取 P50／P95。
+      </p>
+    </div>
+
+    <div class="card ink" style="padding:3.4mm 4mm">
+      <div class="grid g4" style="gap:3mm;text-align:center">
+        <div><div style="font-size:17pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">17</div>
+          <div class="tiny" style="color:#9db3b6">离线门禁套件</div></div>
+        <div><div style="font-size:17pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">52+</div>
+          <div class="tiny" style="color:#9db3b6">实机探针断言</div></div>
+        <div><div style="font-size:17pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">9</div>
+          <div class="tiny" style="color:#9db3b6">组故障注入</div></div>
+        <div><div style="font-size:17pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">32</div>
+          <div class="tiny" style="color:#9db3b6">条诚实局限</div></div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">10</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">THEORY</span>
+        <span class="pill">Huff 1963 · 中心地理论</span></div>
+      <h2><span class="no">09</span>分数的来源，是引力模型与品类画像</h2>
+    </div>
+
+    <div class="grid g2" style="gap:3.6mm">
+      <div class="card g" style="padding:2.8mm 3.2mm">
+        <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">模型形式（Huff, 1963）</div>
+        <div class="mono" style="font-size:9.4pt;margin:1.2mm 0;line-height:1.8">
+          引力累计 &nbsp;G = Σ <span style="color:var(--gold)">(</span>1 ⁄ (d<sub>i</sub> + d₀)<span style="color:var(--gold)">)</span><sup>λ</sup><br>
+          捕获份额 &nbsp;P = A ⁄ (A + B)<br>
+          &nbsp;&nbsp;A = S ⁄ d₀<sup>λ</sup> &nbsp;&nbsp;&nbsp;B = Σ S<sub>k</sub> ⁄ (d<sub>k</sub> + d₀)<sup>λ</sup>
+        </div>
+        <div class="tiny">
+          最小等效距离 <b class="mono">d₀ = 50m</b>（模拟到店距离、避免除零）｜
+          距离衰减指数 <b class="mono">λ = 2.0</b>（取文献常用值，本项目未重新标定）<br>
+        距离口径 <b>步行路网距离</b>（高德 type=3 步行规划；按铺位冻结在本地库，可复算、可离线重算）
+        </div>
+              <div class="divider" style="margin:1.8mm 0 1.4mm"></div>
+        <div class="tiny" style="font-weight:800;color:var(--ink);margin-bottom:.8mm">为什么不用「数店法」</div>
+        <table style="font-size:7.6pt">
+          <thead><tr><th style="width:38%">场景</th><th class="c">数店法</th><th class="c">Huff 模型</th></tr></thead>
+          <tbody>
+            <tr><td>学校在<b>店门口 50m</b></td><td class="c">记 1 个</td>
+                <td class="c green"><b>权重指数级高</b></td></tr>
+            <tr><td>学校在<b>500m 边缘</b></td><td class="c">记 1 个</td>
+                <td class="c red">权重极低</td></tr>
+            <tr class="hl"><td>两者结果</td><td class="c red">完全等价</td>
+                <td class="c green"><b>相差两个数量级</b></td></tr>
+          </tbody>
+        </table>
+</div>
+
+      <div class="card g" style="padding:2.8mm 3.2mm">
+        <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">五维评分与权重（奶茶品类）</div>
+        <table style="font-size:7.9pt;margin-top:1mm">
+          <thead><tr><th>维度</th><th class="c">权重</th><th>数据来源</th></tr></thead>
+          <tbody>
+            <tr><td><b>客群匹配度</b></td><td class="c"><b>35%</b></td><td>需求 POI 引力累计（学校／办公／商圈／社区）</td></tr>
+            <tr><td><b>竞争压力</b></td><td class="c"><b>25%</b></td><td>竞品捕获份额 P（同类店分流）</td></tr>
+            <tr><td><b>交通可达性</b></td><td class="c"><b>25%</b></td><td>通勤 POI ＋ 路网距离</td></tr>
+            <tr><td><b>租金承受力</b></td><td class="c"><b>15%</b></td><td>反解租金 vs 实际报价</td></tr>
+            <tr><td><b>面积适配度</b></td><td class="c"><b>10%</b></td><td>面积 vs 品类产能需求</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card g" style="padding:2.4mm 2.8mm">
+      <div class="tiny" style="letter-spacing:.1em;color:var(--gold);font-weight:800">需求池怎么合成：四类需求 POI 分开计权</div>
+      <div class="flow" style="margin:1.6mm 0 1.2mm">
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">学校<br><span class="tiny">按学段分权</span></div>
+        <div class="ar" style="font-size:8.4pt">＋</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">办公<br><span class="tiny">按企业数与工位</span></div>
+        <div class="ar" style="font-size:8.4pt">＋</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">商圈<br><span class="tiny">周末与节假日波峰</span></div>
+        <div class="ar" style="font-size:8.4pt">＋</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">社区<br><span class="tiny">按户数与房龄</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">Σ(d+d₀)<sup>−λ</sup><br><span class="tiny">引力总量</span></div>
+        <div class="ar">×</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">品类客群占比<br><span class="tiny">奶茶 ≠ 正餐</span></div>
+      </div>
+      <p class="tiny" style="margin-bottom:0">
+        四类先按 <span class="mono">(d+d₀)<sup>−λ</sup></span> 累加成引力总量，再乘以该品类的客群占比，才成为这个品类的潜在客群 ——
+        同一铺位在奶茶与正餐下的需求池并不相同。而"500m 内 3 家学校 = 3"的数店法丢掉了距离信息，
+        同一所学校的"擦边"与"贴脸"会相差两个数量级。
+      </p>
+    </div>
+
+    <div>
+      <h3>四个品类的服务半径与竞争饱和基准</h3>
+      <table style="font-size:8pt">
+        <thead><tr><th style="width:11%">品类</th><th class="c" style="width:15%">服务半径<br><span class="tiny">（步行）</span></th>
+          <th style="width:40%">经济学解释（中心地理论：门槛越低，半径越小）</th>
+          <th>竞争饱和基准</th></tr></thead>
+        <tbody>
+          <tr><td><b>早餐</b></td><td class="c"><b class="gold">300m</b></td>
+              <td>最低门槛（高频、极低价、刚需）→ 半径最小，选址本质是<b>抢动线</b></td>
+              <td>300m 内 ≥ <b>5</b> 家同品类</td></tr>
+          <tr class="hl"><td><b>奶茶</b></td><td class="c"><b class="gold">500m</b></td>
+              <td>低门槛 ＋ 高频冲动消费 → 靠<b>路过的人对不对</b></td>
+              <td>500m 内 ≥ <b>8</b> 家同品类</td></tr>
+          <tr><td><b>便利店</b></td><td class="c"><b class="gold">500m</b></td>
+              <td>高频低值 ＋ 强复购 → 靠<b>人口基数 × 复购频次</b></td>
+              <td>500m 内 ≥ <b>4</b> 家同品类</td></tr>
+          <tr><td><b>甜品</b></td><td class="c"><b class="gold">800m</b></td>
+              <td>较高门槛（目的性 ＋ 场景性消费）→ 半径更大，更看重<b>可达性</b></td>
+              <td>800m 内 ≥ <b>6</b> 家同品类</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="padding:2.8mm 3.2mm">
+      <div class="grid g4" style="gap:2.6mm">
+        <div class="kpi" style="border-left-color:var(--ink)">
+          <div class="lab">本地 POI 总量</div><div class="val">44,233</div><div class="tiny">12.9 MB 本地库</div></div>
+        <div class="kpi" style="border-left-color:var(--ink)">
+          <div class="lab">覆盖品类</div><div class="val">9<span class="u">类</span></div><div class="tiny">其中 4 类完成画像标定</div></div>
+        <div class="kpi" style="border-left-color:var(--ink)">
+          <div class="lab">奶茶 POI</div><div class="val">3,959</div><div class="tiny">2,551 家可识别品牌</div></div>
+        <div class="kpi" style="border-left-color:var(--ink)">
+          <div class="lab">查询响应</div><div class="val">毫秒<span class="u">级</span></div><div class="tiny">0 次 API 调用</div></div>
+      </div>
+      <p class="tiny" style="margin:1.2mm 0 0">
+        本地库按浙江省构建、覆盖 11 个地级市，4 个品类的画像参数逐个标定，未覆盖的品类明确告知。
+        预抓取的理由是三条：演示现场网络与限流不可控、单次 API 有配额、本地化后响应到毫秒级 ——
+        实时接口只作兜底。
+      </p>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">11</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">ARCHITECTURE &amp; EXPERTS</span>
+        <span class="pill">14 节点 · 9 位专家</span></div>
+      <h2><span class="no">10</span>十四个节点，九位专家</h2>
+      <p class="lead" style="margin-top:1.2mm">
+        引擎只算一次，专家各自解读。<b>三个互斥起点</b>决定先算哪条线，<b>九位专家</b>决定用哪个视角把结论讲出来。
+      </p>
+    </div>
+
+    <div class="card ink" style="padding:3mm 3.6mm">
+      <div class="flow" style="margin-bottom:1.8mm">
+        <div class="nd" style="font-size:7.4pt;padding:1.5mm 1mm">一句话进<br><span class="tiny">interpret</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.4pt;padding:1.5mm 1mm">分支判定<br><span class="tiny">classify</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.4pt;padding:1.5mm 1mm">补全信息<br><span class="tiny">collect_*</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.4pt;padding:1.5mm 1mm">引擎评估<br><span class="tiny">analyze</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.4pt;padding:1.5mm 1mm">专家解读<br><span class="tiny">expert</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.4pt;padding:1.5mm 1mm">结论输出<br><span class="tiny">verdict</span></div>
+      </div>
+      <table style="font-size:7.7pt">
+        <thead><tr>
+          <th style="color:#e5c98a;background:rgba(255,255,255,.07);border-bottom-color:rgba(229,201,138,.35)" style="width:12%">起点</th>
+          <th class="c" style="color:#e5c98a;background:rgba(255,255,255,.07);border-bottom-color:rgba(229,201,138,.35)" style="width:12%">有品类</th>
+          <th class="c" style="color:#e5c98a;background:rgba(255,255,255,.07);border-bottom-color:rgba(229,201,138,.35)" style="width:12%">有铺位</th>
+          <th class="c" style="color:#e5c98a;background:rgba(255,255,255,.07);border-bottom-color:rgba(229,201,138,.35)" style="width:16%">有真实流水</th>
+          <th style="color:#e5c98a;background:rgba(255,255,255,.07);border-bottom-color:rgba(229,201,138,.35)" style="width:20%">走哪位专家</th>
+          <th style="color:#e5c98a;background:rgba(255,255,255,.07);border-bottom-color:rgba(229,201,138,.35)">这个专家的工具白名单</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="color:#e9f0ee"><b style="color:#f7f3e4">A</b></td>
+              <td class="c" style="color:#7ee0b8">✓</td><td class="c" style="color:#7ee0b8">✓</td>
+              <td class="c" style="color:#8fa6a8">—</td>
+              <td style="color:#e9f0ee">选址评估师 —— 先算<b style="color:#f0d9a6">能不能开</b></td>
+              <td style="color:#e9f0ee">评分 · 反解租金 · 竞品</td></tr>
+          <tr><td style="color:#e9f0ee"><b style="color:#f7f3e4">B</b></td>
+              <td class="c" style="color:#fda4a4">✗</td><td class="c" style="color:#7ee0b8">✓</td>
+              <td class="c" style="color:#8fa6a8">—</td>
+              <td style="color:#e9f0ee">品类反推顾问 —— 先定<b style="color:#f0d9a6">做什么</b></td>
+              <td style="color:#e9f0ee">评分 · 四品类套算（<b style="color:#f0d9a6">拿不到</b>租金反解）</td></tr>
+          <tr><td style="color:#e9f0ee"><b style="color:#f7f3e4">C</b></td>
+              <td class="c" style="color:#7ee0b8">✓</td><td class="c" style="color:#7ee0b8">✓</td>
+              <td class="c" style="color:#7ee0b8">✓</td>
+              <td style="color:#e9f0ee">经营测算专家 —— <b style="color:#f0d9a6">只诊断、不评估</b></td>
+              <td style="color:#e9f0ee">成本拆解 · 品牌对标（<b style="color:#f0d9a6">拿不到</b>位置评分）</td></tr>
+        </tbody>
+      </table>
+      <p class="tiny" style="color:#a8bfc2;margin-top:1.6mm;margin-bottom:0">
+        判定有<b style="color:#f7f3e4">先后顺序硬约束</b>："我有个店，月流水 8 万"会同时命中多个关键词，
+        必须让经营诊断的判断<b style="color:#f7f3e4">先于</b>品类反推，否则已开店会被抢进"帮你想做什么品类"的错误分支。
+        已用 6 条正反例锁死。<b style="color:#f7f3e4">为什么显式建图</b>：可解释、可单测、可定位问题节点 —— 指着图就能说清这一步在做什么。
+      </p>
+    </div>
+
+    <div class="card g" style="padding:2.2mm 3mm">
+      <div class="tiny" style="line-height:1.55">
+        <b style="color:var(--ink)">14 个节点全清单</b>（与 <span class="mono">agent_graph.py</span> 里
+        <span class="mono">add_node</span> 的调用一一对应，可逐个点名）：
+        <span class="mono" style="color:var(--ink)">classify</span> ·
+        <span class="mono">collect_info</span> · <span class="mono">collect_brand</span> ·
+        <span class="mono">collect_invest</span> · <span class="mono">search_rental</span> ·
+        <span class="mono">select_shop</span> · <span class="mono">analyze</span> ·
+        <span class="mono">interpret</span> · <span class="mono">free_chat</span> ·
+        <span class="mono">compare</span> · <span class="mono">shop_first</span> ·
+        <span class="mono">place_first</span> · <span class="mono">reverse_match</span> ·
+        <span class="mono">diagnose</span>
+        —— 其中 <span class="mono">shop_first</span>／<span class="mono">place_first</span>／
+        <span class="mono">reverse_match</span> 对应三个互斥起点，<span class="mono">diagnose</span> 只在
+        已开店分支可达。
+      </div>
+    </div>
+
+    <div class="grid g2" style="gap:3.4mm">
+      <div class="card g">
+        <h3>九位专家，共享同一套结论</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:1.1mm;margin:1mm 0 1.2mm">
+          <span class="tag ink">选址评估师</span><span class="tag ink">品类反推顾问</span><span class="tag ink">竞品分析师</span>
+          <span class="tag ink">租金谈判教练</span><span class="tag ink">加盟顾问</span><span class="tag ink">创业政策顾问</span>
+          <span class="tag ink">门头审核员</span><span class="tag ink">经营测算专家</span><span class="tag ink">模型审计师</span>
+        </div>
+        <p class="small" style="margin-bottom:0">
+          问租金、问竞争、问加盟费，落到各自的落点上。<b>职责边界由工具集约束</b>，prompt 里的提醒只作辅助 ——
+          所以"这个专家该说什么、不该碰什么"是可被机器检查的，不靠自律。
+        </p>
+      </div>
+      <div class="card g">
+        <h3>一份铁律，九份人格</h3>
+        <ul class="tight small" style="margin-bottom:0">
+          <li><b>13 条公共铁律</b>由九位专家共享：不编数据、缺数据就说缺、不混口径、不改写历史</li>
+          <li>每位专家只写自己特有的增量指令 ⇒ 改一条铁律，九位专家同时生效</li>
+          <li>守住铁律靠机器：校验程序比对九份配置的编号序列、必填项与引用关系</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>真 function calling：调用由运行时执行</h3>
+      <div class="grid g3" style="gap:2.6mm;margin-top:1.2mm">
+        <div class="tiny"><b>工具词汇表 33 个</b><br>既是专家白名单，也是"工具名漂移"的护栏</div>
+        <div class="tiny"><b>可执行注册 18 个</b><br>评分／反解租金／竞品／品牌／诊断…</div>
+        <div class="tiny"><b>越界被 registry 拦下</b><br>LLM 只能在这个白名单内调用</div>
+      </div>
+      <p class="tiny" style="margin-top:1.4mm;margin-bottom:0">
+        <b>金额类事实由工具独占：</b>prompt 严禁编造行情数字，一切金额必须来自工具返回值。
+        AI 的职责在这一层之外 —— 把一句人话解析成五项参数、判定走哪条分支、拆开一句话里的多个诉求、
+        驱动九位专家各切视角解读；一句话里含多个诉求时会被拆成子意图分别路由，各自给出明确结论。
+      </p>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">12</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">DATA DETERMINISM</span>
+        <span class="pill">两个会改变结论的数据缺陷</span></div>
+      <h2><span class="no">11</span>数据先取干净，结论才敢给</h2>
+      <p class="lead" style="margin-top:1.2mm">
+        一级数据来自本地预抓取库，实时接口只作兜底。兜底路径曾出过一个<b class="red">会陈述错误事实</b>的问题。
+      </p>
+    </div>
+
+    <div class="card warn" style="padding:2.6mm 3mm">
+      <div class="tiny" style="letter-spacing:.08em;color:var(--red);font-weight:800">
+        失效链路 · 限流被静默吞成了「空结果」</div>
+      <div class="flow" style="margin:1.6mm 0 0">
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">连续调用<br><span class="tiny">第 5 次起</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">接口限流<br><span class="tiny">间隔 2s 重试即恢复</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm;border-color:rgba(190,70,70,.55)">
+          status ≠ 1<br><span class="tiny">return []</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">下游收到「空」<br><span class="tiny">当成"本来就没有"</span></div>
+        <div class="ar">›</div>
+        <div class="nd" style="font-size:7.3pt;padding:1.5mm .9mm">报告写<br><span class="tiny">"高德未收录该品牌"</span></div>
+      </div>
+      <p class="tiny" style="margin:1.6mm 0 0">
+        用户读到的结论是 <b class="red">"这个商圈没有蜜雪冰城"</b>，两次评分月流水相差 <b>2.29 倍</b>。
+        这类缺陷比算错一个数更危险 —— <b>它陈述了一个错误事实</b>。根子在最后两格之间：
+        <span class="mono">限流</span> 与 <span class="mono">本来就没有</span> 塌成了同一个值。
+      </p>
+      <div class="divider" style="margin:1.6mm 0 1.4mm"></div>
+      <div class="tiny" style="letter-spacing:.08em;color:var(--gold);font-weight:800">四条修法</div>
+      <div class="grid g4" style="gap:2.6mm;margin-top:1.2mm">
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">① 抓取层带出失败原因</div>
+          <div class="tiny" style="margin-top:.5mm">按错误码分"可重试"（QPS 超限→退避重试）与
+            "配额耗尽"（不重试，明确告知今天取不到）</div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">② 持久化冻结缓存</div>
+          <div class="tiny" style="margin-top:.5mm">缓存原始数据快照，同坐标换品牌可复用；
+            成功 30 天、失败 180 秒</div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">③ 六种状态分流</div>
+          <div class="tiny" style="margin-top:.5mm">正常／仅公开数据／取数失败／无同品牌／本店品牌／样本不足；
+            "取数失败"必须声明不代表附近没有该品牌</div></div>
+        <div><div class="tiny" style="font-weight:800;color:var(--ink)">④ 限流时本地库交叉验证</div>
+          <div class="tiny" style="margin-top:.5mm">本地库能证明该品牌 1km 内有 N 家门店，只是本次没取到价格，
+            直接反驳"限流＝附近没有这家店"</div></div>
+      </div>
+      <p class="tiny" style="margin:1.2mm 0 0">
+        副产物：同一地址评分从 2 次 API 降为 1 次，重复分析降为 <b>0 次</b>；
+        端到端两次完整评分的 17 项结果指纹<b class="green">完全相同</b>，已固化为回归断言。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:4mm">
+      <div>
+        <h3>一个单位口径错误，能让结论完全翻转</h3>
+        <p class="tiny" style="margin-bottom:1.2mm">
+          把月租砍到测试值时结论<b>反而更差</b> —— 顺着这个反直觉现象追下去，发现引擎把第三方接口返回的
+          <b class="red">「单杯价」当成了「每单金额」</b>，系统性低估流水约 <b>1.4 ~ 1.7 倍</b>。
+        </p>
+        <table style="font-size:7.6pt">
+          <thead><tr><th>品牌</th><th class="num">接口值</th><th class="num">招股书<br>单杯价</th>
+            <th class="num">招股书<br>每单金额</th><th class="num">每单<br>杯数</th></tr></thead>
+          <tbody>
+            <tr class="hl"><td><b>蜜雪冰城</b></td><td class="num">¥7.0</td><td class="num">¥6.72</td>
+                <td class="num"><b>¥11.4</b></td><td class="num"><b>1.70</b></td></tr>
+            <tr><td><b>沪上阿姨</b></td><td class="num">¥14.0</td><td class="num">7~22 中位</td>
+                <td class="num"><b>¥25</b></td><td class="num"><b>1.79</b></td></tr>
+            <tr><td><b>霸王茶姬</b></td><td class="num">¥20.0</td><td class="num">¥20.48</td>
+                <td class="num">16~20</td><td class="num"><b>≈1.0</b></td></tr>
+          </tbody>
+        </table>
+        <p class="tiny" style="margin-top:1.2mm">
+          前两列几乎相等、第三列明显更高 ⇒ <b>接口值落在"单杯价"这一列</b>。三重对照全部取自招股书公开披露。
+        </p>
+      </div>
+      <div>
+        <h3>修正后，同一个铺位的结论翻转了</h3>
+        <p class="tiny" style="margin-bottom:1.2mm">宁波天一广场 · 30㎡ · 前期投入 20 万 · 蜜雪冰城 · 月租 ¥12,000</p>
+        <table style="font-size:7.6pt">
+          <thead><tr><th style="width:30%">客单价口径</th><th class="num">月流水</th>
+            <th class="num">月净利</th><th class="num">回本</th><th class="c">结论</th></tr></thead>
+          <tbody>
+            <tr><td>品类画像（无校正）¥16</td><td class="num">¥131,626</td><td class="num green">+¥31,837</td>
+                <td class="num">5.3 月</td><td class="c">推荐</td></tr>
+            <tr class="bad"><td><b>旧：单杯价当每单</b> ¥7</td><td class="num">¥57,586</td>
+                <td class="num red"><b>−¥4,664</b></td><td class="num red">回不了本</td>
+                <td class="c red"><b>账算不过来（误判）</b></td></tr>
+            <tr class="good"><td><b>新：公开每单金额</b> ¥11.4</td><td class="num">¥93,783</td>
+                <td class="num green"><b>+¥13,181</b></td><td class="num">10.7 月</td>
+                <td class="c green"><b>推荐</b></td></tr>
+          </tbody>
+        </table>
+        <!-- 净利正负条：同一个铺子，只因为"客单价"这一个口径不同，
+             结论就从"赚钱"翻到"亏钱"再翻回来 —— 画出来比读表格快得多。 -->
+        <div class="pnl">
+          <div class="pnl-r"><span class="pnl-k">品类画像 ¥16（无校正）</span>
+            <span class="pnl-t"><em></em><i class="pos" style="left:50%;width:49%"></i></span>
+            <span class="pnl-v pos">+¥31,837</span></div>
+          <div class="pnl-r"><span class="pnl-k">旧：把单杯价当每单 ¥7</span>
+            <span class="pnl-t"><em></em><i class="neg" style="right:50%;width:7.3%"></i></span>
+            <span class="pnl-v neg">−¥4,664</span></div>
+          <div class="pnl-r"><span class="pnl-k">新：公开每单金额 ¥11.4</span>
+            <span class="pnl-t"><em></em><i class="pos" style="left:50%;width:20%"></i></span>
+            <span class="pnl-v pos">+¥13,181</span></div>
+          <div class="tiny" style="margin-top:.9mm;color:var(--red)">
+            中间那条红的是<b>误判</b>：口径错一次，一个能赚钱的铺子被判成"账算不过来"。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card ink" style="padding:2.8mm 3.4mm">
+      <div class="tiny" style="color:#d5e2e1;margin-bottom:0">
+        <b style="color:#f0d9a6">一个单位口径，足以把一个能赚钱的铺子劝退。</b>
+        由此建立的数据纪律：逐字段标注来源（招股书／年报）与披露期间；每个值都能分辨
+        <b style="color:#f7f3e4">「披露」还是「推导」</b>，推导值显式标注；<b style="color:#f7f3e4">查不到就返回空</b> ——
+        GMV 是区间字符串就不猜中位数，未收录的品牌不给替代值。这三条"不给"的做法本身也进了回归测试。
+      </div>
+    </div>
+
+    <div class="card g" style="padding:2.4mm 3mm">
+      <div style="display:flex;gap:3.2mm;align-items:flex-start">
+        <img src="img/12_luckin_invest_note.png" alt="加盟费三态在界面上的两处呈现"
+             style="width:33%;border-radius:1.2mm;border:.6pt solid var(--line);display:block;flex:0 0 auto">
+        <div style="flex:1">
+          <div class="tiny" style="font-weight:800;color:var(--ink);margin-bottom:.8mm">
+            实机证据 · 同一件事在两处界面上必须说法一致</div>
+          <p class="tiny" style="margin-bottom:0">
+            加盟费三态（收取／明确不收／查不到）是一条<b>跨界面</b>的不变式：聊天里说「明确不收」，
+            同一屏右侧的表单也必须写「明确不收」。这条不变式被抓过一次 —— 聊天侧的两态逻辑改了、
+            构造表单提示文字的那段代码没跟着改，同一屏于是出现两套矛盾说法。
+            补的断言刻意<b>不用字面查找</b>，改用「顺序」表达，因为新写法里本来就含旧代码的子串。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">13</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">MULTIMODAL & RAG</span></div>
+      <h2><span class="no">12</span>四个 AI 能力各管哪一环</h2>
+      <p class="lead" style="margin-top:1.4mm">
+        AI 在这个作品里承担的是<b>从进门到最后拍板的全过程</b>：把一句人话解析成五项参数、
+        判定走哪条分支、拆开一句话里的多个诉求、读懂门头照片、检索政策原文、组织谈判话术，
+        并在模型全部不可用时把关键结论完整交出来。下面四项能力，每一项都可验收。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:3mm">
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>① 视觉理解 · 门头照</h3><span class="tag green">可交付</span>
+        </div>
+        <p class="small" style="margin-bottom:1.2mm">
+          上传随手拍的门头照，识别<b>装修档次、门头可见度、卫生状况</b>，
+          产出对选址有影响的判断，并折算成形象分并入总分。
+        </p>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li>2 张真实实拍图实测通过</li>
+          <li>时限不变式：单模型 60s、总预算 75s，<b>不变式 2×60 &gt; 75 被断言钉住</b></li>
+          <li>无密钥时<b>必须报错</b>，不返回假数据</li>
+          <li class="red">已知局限：无负样本回归（只测了真门头图）</li>
+        </ul>
+      </div>
+
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>② 检索增强 · 知识库</h3><span class="tag green">可交付</span>
+        </div>
+        <p class="small" style="margin-bottom:1.2mm">
+          <b>74 条</b>中文语料，覆盖选址方法论／品类画像／成本与政策／加盟政策／谈判与签约／
+          数据与模型边界／营销与运营七个分区。
+        </p>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li>检索算法：中文 2-gram TF-IDF 余弦相似度，<b>纯标准库、零外部依赖</b></li>
+          <li>召回率 <b>recall@1 = recall@3 = 100%</b>（73 条标注查询），题外话零命中</li>
+          <li>阈值不靠手感：正样本最低 0.1171 / 负样本最高 0.0968 → <b>取间隙中点 0.11</b></li>
+          <li>注入点 4 个节点，与专家视角联动</li>
+        </ul>
+      </div>
+
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>③ 租金谈判助手</h3><span class="tag amber">话术无机器断言</span>
+        </div>
+        <p class="small" style="margin-bottom:1.2mm">
+          <b>话术里的金额只来自工具：</b>话术由 AI 组织，每一处金额都取自引擎返回值。
+        </p>
+        <table style="font-size:7.4pt">
+          <thead><tr><th>信息线</th><th>定位</th></tr></thead>
+          <tbody>
+            <tr><td>同区在租挂牌价带</td><td><b>背景</b>（口径粗，不可当目标价）</td></tr>
+            <tr class="hl"><td><b>承受力上限</b>（反解）</td><td><b class="green">天花板</b>（唯一可当硬约束的数）</td></tr>
+            <tr><td>结构化筹码</td><td>由规则引擎产出，LLM 组织成话术</td></tr>
+          </tbody>
+        </table>
+        <p class="tiny" style="margin-top:1.2mm;margin-bottom:0">
+          关键修正：挂牌价带曾用来反推"建议目标价"，实测发现其最低样本可能是
+          <b>食堂档口、仓库兼底商</b>——已<b>降级为参考带</b>，不再产目标价。
+        </p>
+      </div>
+
+      <div class="card g">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <h3>④ 降级策略</h3><span class="tag green">9 组故障注入</span>
+        </div>
+        <p class="small" style="margin-bottom:1.2mm">
+          演示现场网络不可控，所以<b>每一层都能降级</b>，且降级后仍给出可用结论。
+        </p>
+        <div class="flow" style="gap:0">
+          <div class="nd" style="font-size:7.2pt;padding:1.4mm .8mm">LLM 层<br><span class="tiny">多provider 链</span></div>
+          <div class="ar" style="font-size:9pt">›</div>
+          <div class="nd" style="font-size:7.2pt;padding:1.4mm .8mm">数据层<br><span class="tiny">本地库兜底</span></div>
+          <div class="ar" style="font-size:9pt">›</div>
+          <div class="nd" style="font-size:7.2pt;padding:1.4mm .8mm">功能层<br><span class="tiny">失败不阻断</span></div>
+          <div class="ar" style="font-size:9pt">›</div>
+          <div class="nd" style="font-size:7.2pt;padding:1.4mm .8mm">界面层<br><span class="tiny">离线模板</span></div>
+        </div>
+        <p class="tiny" style="margin-top:1.2mm;margin-bottom:0">
+          规则兜底解读<b>自带全部关键结论</b>（三档情景／口径区间／租金临界点／局限），
+          LLM 全挂时用户拿到的依然是完整结论，只是少了润色。
+        </p>
+      </div>
+    </div>
+
+    <div class="card" style="">
+      <h3>9 组故障注入 —— 零真实 API，把"演示时挂了会怎样"提前演一遍</h3>
+      <div class="grid g3" style="gap:2.4mm;margin-top:1.2mm">
+        <div class="tiny"><b>打断 LLM</b>：每个 provider 都被试过；全挂必抛且错误逐一点名</div>
+        <div class="tiny"><b>假时钟</b>：超预算即跳过，单次超时被剩余预算收紧</div>
+        <div class="tiny"><b>抓取失败 + LLM 全挂</b>：承受力上限这条硬证据不能丢</div>
+        <div class="tiny"><b>规则兜底</b>：自带全部关键结论，且输出确定性</div>
+        <div class="tiny"><b>provider 切换</b>：切换回调必触发，回调自身抛异常不带崩主流程</div>
+        <div class="tiny"><b>视觉时限</b>：不变式被断言；无密钥必抛，不返回假数据</div>
+      </div>
+      <p class="tiny" style="margin-top:1.4mm;margin-bottom:0">
+        补缺时还带回一个新发现：同步版与异步版的降级回调<b>文案不一致</b>，
+        同步路径下用户<b>看不到"还要等多久"</b>——已统一。
+      </p>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">14</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">VERIFICATION</span>
+        <span class="pill">17 套件 · 52+ 实机断言</span></div>
+      <h2><span class="no">13</span>这套东西怎么证明它没坏</h2>
+      <p class="lead" style="margin-top:1.2mm">验证体系的价值，不在"全绿"，而在<b>它真的抓到过东西</b>。</p>
+    </div>
+
+    <table>
+      <thead><tr>
+        <th class="c" style="width:7%">#</th><th style="width:37%">抓出的问题</th>
+        <th>为什么肉眼 / 常规测试看不出来</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="c">1</td><td>专家配置文件里的反引号 → <b>整个 YAML 非法</b></td>
+            <td>正文里的反引号是 markdown 标记，写进裸标量就崩；9 份里只有这一处</td></tr>
+        <tr><td class="c">2</td><td>校验规则把 <span class="mono">requires: []</span> 误判为"缺必填"</td>
+            <td><b>规则自身的 bug</b> ⇒ 说明规则本身也要被验证</td></tr>
+        <tr><td class="c">3</td><td>公共铁律<b>编号重复</b></td>
+            <td>13 条里的编号断点，人工通读极易滑过；机器比对编号序列一眼抓出</td></tr>
+        <tr class="hl"><td class="c">4</td><td>已开店诊断被"我有个店"抢进品类反推</td>
+            <td>关键词重叠，靠<b>判定顺序</b>解决；已用 6 条正反例锁死</td></tr>
+        <tr><td class="c">5</td><td>检索阈值漏噪</td>
+            <td>用户聊天气，知识库却把"模型稳健性检验"注入了 prompt</td></tr>
+        <tr><td class="c">6</td><td>同步／异步降级文案不一致</td>
+            <td>走同步路径时用户<b>看不到"还要等多久"</b></td></tr>
+        <tr><td class="c">7</td><td>缓存清理函数让缓存<b>一次都没落盘</b>且无报错</td>
+            <td>路径初始化被绑在错误条件里 → <b>静默早退</b>，功能看起来正常</td></tr>
+        <tr><td class="c">8</td><td>竞品摘要里变量未初始化就 append → <span class="mono">NameError</span></td>
+            <td>会让<b>整条竞品分析链路崩掉</b></td></tr>
+        <tr class="hl"><td class="c">9</td><td><b>门禁自身失效</b>：某套件失败时不设退出码</td>
+            <td>批量回归会把失败当"通过" ⇒ <b>门禁形同虚设</b>（最危险的一类）</td></tr>
+        <tr class="hl"><td class="c">10</td><td>加盟费三态的<b>第二处界面</b>漏改</td>
+            <td>聊天说"明确不收"，同一屏的表单仍写"暂无口径"</td></tr>
+      </tbody>
+    </table>
+
+    <div class="card g">
+      <h3>第 10 条值得单独讲：为什么"验了返回值"还不够</h3>
+      <div class="grid g2" style="gap:4mm;margin-top:1.2mm">
+        <div>
+          <p class="tiny" style="margin-bottom:1.2mm">
+            修复后，取值的函数<b>返回值是对的</b>，静态断言全绿。
+            但<b class="red">界面上构造提示文字的那段代码是另一个消费方</b>，
+            它仍按旧的两态逻辑判断 —— 于是同一个屏幕上出现两套矛盾说法。
+          </p>
+          <p class="tiny" style="margin-bottom:0">
+            <b>返回值对、消费方用错，断言照样全绿。</b>
+          </p>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;margin-bottom:1mm">补的断言（设计上有讲究）</div>
+          <ul class="tight tiny" style="margin-bottom:0">
+            <li>用<b>「顺序」</b>表达不变式：三态判断必须出现在旧判断<b>之前</b></li>
+            <li>刻意<b>不用字面查找</b>——新写法里本来就含旧代码的子串，
+                <b>字面查会自己打自己</b></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card amb" style="">
+      <h3>实机探针抓过的三类问题 —— 静态断言<b>永远</b>抓不到</h3>
+      <ul class="tight tiny" style="margin-bottom:0">
+        <li><b>重渲竞态</b>：检测到卡片后立刻点击，正好撞上界面重渲 → 点击落在已被替换的节点上，
+            <b class="red">不报错、也没有任何反应</b></li>
+        <li><b>文案在屏幕上不对</b>：静态断言全绿，实机读到的界面文字里旧说法还在</li>
+        <li><b>元素句柄脱挂</b>：列表重渲导致已获取的元素失效</li>
+      </ul>
+      <p class="tiny" style="margin-top:1.2mm;margin-bottom:0">
+        <b>答辩金句：</b>"代码看起来对、断言全绿，但实机上什么都没发生 —— 只有真浏览器能发现。"
+      </p>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">15</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">BRAND CALIBRATION</span></div>
+      <h2><span class="no">13</span>这套东西怎么证明它没坏</h2>
+    </div>
+
+    <div class="card warn">
+      <h3 class="red">发现的问题：同一件事被算了两次</h3>
+      <p class="small" style="margin-bottom:0">
+        早期标定中，"品牌力"既通过捕获份额公式进了一次流水，又在后面<b>乘了一次品牌系数</b> ——
+        同一个因素被重复计入。做过正交性检验后确认：标定值与品牌力本身的相关系数高达
+        <b class="red">+0.6719</b>，也就是说<b>它衡量的很大程度是品牌力本身，与它该衡量的「位置优势」混在一起</b>。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:4mm">
+      <div class="card g">
+        <h3>整改方式：把"自己"设为无品牌</h3>
+        <div class="mono tiny" style="background:rgba(0,0,0,.045);padding:2.2mm;border-radius:1mm;margin:1.2mm 0">
+          标定值 = D × P（<b>己方品牌设为 1.0</b>，<b>竞品品牌保持真实</b>）<br>
+          <span style="color:var(--muted)">⇒ 度量"假设我这店没有品牌力，它还比同商圈中位店好多少"</span>
+        </div>
+        <p class="small" style="margin-bottom:0">
+          改用后，相关系数<b class="green">从 +0.6719 降到 +0.1531</b>——
+          与品牌力几乎脱钩，剩下的才是真正的<b>位置微区位差异</b>。
+        </p>
+      </div>
+      <div class="card amb">
+        <h3>必须诚实说的一句</h3>
+        <p class="small" style="margin-bottom:0">
+          整改后，这个指标<b class="red">只能读作「位置残差」</b>；把它读成「品牌溢价」或「流水倍数」，都会高估品牌的作用。
+          <br><br>
+          对外表述口径已被强制收窄 —— 避免把"位置优势"包装成"品牌能带来 N 倍流水"这种
+          容易被追问穿的说法。
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <h3>标定结果：被认定"显著"的品牌从 7 个收敛到 3 个</h3>
+      <table>
+        <thead><tr>
+          <th style="width:20%">品牌</th><th class="num" style="width:12%">样本量</th>
+          <th class="num" style="width:15%">整改前</th><th class="num" style="width:15%">整改后</th>
+          <th>说明</th>
+        </tr></thead>
+        <tbody>
+          <tr class="hl"><td><b>瑞幸</b> <span class="tag gold">显著</span></td>
+            <td class="num">55</td><td class="num">1.2500<br><span class="tiny">被截断</span></td>
+            <td class="num"><b>1.1591</b></td>
+            <td>原先的偏高里，大部分来自重复计算</td></tr>
+          <tr><td><b>乐乐茶</b> <span class="tag gold">显著</span></td>
+            <td class="num">14</td><td class="num">0.9301</td><td class="num"><b>0.9568</b></td>
+            <td>新进入显著名单</td></tr>
+          <tr><td><b>茶百道</b> <span class="tag gold">显著</span></td>
+            <td class="num">73</td><td class="num">0.9585</td><td class="num"><b>0.9351</b></td>
+            <td>新进入显著名单</td></tr>
+          <tr><td>蜜雪冰城</td><td class="num">173</td><td class="num">1.1903</td>
+            <td class="num">1.0018</td>
+            <td>原先偏高的 <b>+19%</b> 几乎全部是自己</td></tr>
+          <tr><td>霸王茶姬</td><td class="num">81</td><td class="num">1.0781</td>
+            <td class="num">1.0000</td><td>100% 由品牌力解释</td></tr>
+          <tr><td>古茗</td><td class="num">218</td><td class="num">1.0724</td>
+            <td class="num">0.9899</td><td>掉出显著名单</td></tr>
+          <tr><td>个体 / 杂牌</td><td class="num">557</td><td class="num">0.8370</td>
+            <td class="num">1.0111</td><td>原先的 107% 由品牌力解释</td></tr>
+        </tbody>
+      </table>
+      <p class="tiny" style="margin-top:1.2mm">
+        样本量 14 ~ 557 不等。<b>样本量不足的品牌不进入"显著"名单</b>——
+        用收缩估计（样本越少、越往 1.0 收缩）+ 分层护栏处理。
+      </p>
+      <p class="tiny" style="margin-top:1mm">
+        上表是 <b>v7（直线距离）</b> 的整改对照。引擎<b>当前</b>跑的是
+        <b>v8（步行路网距离，2026-09-21 起）</b>：规则一字未改，只换距离口径，
+        采用样本 1631 → <b>1508</b> 家。TIER1 显著<b>仍是 3 个，但成员换了人</b>——
+        <b>瑞幸 1.3271（n=42）</b>、<b>奈雪 1.3632（n=10）</b>、<b>春莱 1.5177（n=11）</b>；
+        乐乐茶与茶百道在路网口径下不再显著。
+      </p>
+    </div>
+
+    <div class="card ok" style="">
+      <h3>这件事本身就是最好的"技术实现"证据</h3>
+      <p class="small" style="margin-bottom:0">
+        我们<b>没有</b>把一个"看起来有效"的指标留在系统里。
+        做完正交性检验发现它重复计算了，就整改掉——哪怕整改会让成绩单上"显著"的品牌从 7 个掉到 3 个。
+        <b>宁可少，也不掺沙。</b>
+      </p>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>肆 · 边界</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">16</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">LIMITATIONS</span>
+        <span class="pill">主动披露 · 共 32 条</span></div>
+      <h2><span class="no">14</span>我们知道自己没测什么</h2>
+      <p class="lead" style="margin-top:1.2mm">
+        一个把局限写清楚的产品，比一个"看起来什么都行"的产品<b>更可信</b>。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:3mm">
+      <div class="card">
+        <div class="tag ink">数据层面</div>
+        <ul class="tight tiny" style="margin:.9mm 0 0">
+          <li>本地库覆盖不完整且<b>随商圈变化</b>：实测覆盖率 31% ~ 95%，
+              <b class="red">属水平偏差，随商圈浮动</b> ⇒ 绝对水平不能当锚点</li>
+          <li>挂牌价带<b>不可复现</b>：每次返回 15~30 条不等</li>
+          <li>区域筛选粒度只到<b>行政区，不到商圈</b></li>
+          <li><b>挂牌价 ≠ 成交价</b>（无成交数据，结构性局限）</li>
+          <li>第三方接口<b>配额</b>（已取消日配额，按月限额）</li>
+          <li>本地库缺价格字段：只能证"存在性"，<b>不能用来算价格校正</b></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="tag ink">模型层面</div>
+        <ul class="tight tiny" style="margin:.9mm 0 0">
+          <li><b>需求-价格弹性未标定</b> ⇒ 以口径区间呈现；不会因本方案而消失</li>
+          <li><b>口径区间与置信区间是两回事</b>：两端是两个建模极端，中间<b>没有概率分布</b>，
+              不能读成"真值 95% 落在里面"</li>
+          <li>区间是<b>单侧</b>的：报告里每个单点数字都取自"单量刚性"端</li>
+          <li>距离衰减指数取<b>文献值</b>，反解出的估计值置信区间<b>不覆盖该文献值</b>；
+              靠敏感性检验（排名相关最低 0.921）作稳健性声明</li>
+          <li><b>净利对流水并不单调</b>：用工人数按日单量台阶跳档，
+              流水上升可能反而净利下降</li>
+          <li>竞争分<b>封顶已不触发</b>（v8 新锚点下阈值 <b>P*=1.0040</b> &gt; 1）：旧锚点曾靠封顶<b>抹平品牌差异</b>，已随重标修复</li>
+          <li>品牌溢价 UPLIFT 仍按<b>直线口径</b>标定：路网口径产物已备好（<b>0 回退</b>）但未采用 —— 它有 3 个品牌的<b>点估计掉出自己的 CI</b>，违反「点估计必须落在 CI 内」的不变式，需先裁决 CI 口径</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="tag ink">成本假设层面</div>
+        <ul class="tight tiny" style="margin:.9mm 0 0">
+          <li>成本率取自<b>假设区间</b>；与选址侧共用同一套假设。
+              用户有真实账目时可传入替换，但<b>系统不替用户认定真值</b></li>
+          <li>品牌公开基准是<b>品牌平均且披露期不同</b>，与同商圈同面积可比店有差距 ⇒
+              <b>只能判断量级，不能当业绩考核线</b></li>
+          <li><b>不含开业爬坡期差异</b>，也不含一次性损失（如装修返工）</li>
+          <li>营销语料只到"机制性事实"层级：说明"外卖占比是成本杠杆"，
+              <b>不给</b>"投 X 元买多少单"这类系数</li>
+          <li>每单杯数取自公开披露的有限样本，对部分高端品牌会<b>高估</b></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="tag ink">覆盖与验证层面</div>
+        <ul class="tight tiny" style="margin:.9mm 0 0">
+          <li>地域限<b>浙江省 11 市</b>；品类限 <b>4 类</b>，不承诺全国/全品类</li>
+          <li>明确<b>不做</b>精确人流量、<b>不承诺</b>营业额预测精度</li>
+          <li>政策语料有 4 个方向未覆盖 ⇒ 语料里<b>明说"暂未收录"，不编</b></li>
+          <li>LLM 自由文本的断言<b>不进离线门禁</b>（那类测试天然不稳定）</li>
+          <li>谈判话术质量<b>无机器断言</b>：只覆盖"数据包正确"，靠 prompt 自律</li>
+          <li>视觉能力<b>无负样本回归</b>（未测"非门头图"分支）</li>
+          <li>门槛自建标注集的召回率<b>偏乐观</b>，不代表真实用户问法</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card amb" style="padding:2.8mm 3.4mm">
+      <div class="tiny" style="font-weight:800;color:var(--amber);margin-bottom:1.2mm">
+        这些局限怎么用才不出错：三条读法约定</div>
+      <div class="grid g3" style="gap:3.6mm">
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">绝对水平不跨商圈比</div>
+          <div class="tiny" style="margin-top:.5mm">覆盖率在 31% ~ 95% 之间浮动，属水平偏差。
+            同一批次内的铺位排名可用，跨商圈的绝对分不可用。</div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">口径区间按建模极端读</div>
+          <div class="tiny" style="margin-top:.5mm">两端是两个极端假设下的结果，中间没有概率分布。
+            它回答"差别有多大"，不回答"真值落在哪"。</div>
+        </div>
+        <div>
+          <div class="tiny" style="font-weight:800;color:var(--ink)">挂牌价只作市场参考</div>
+          <div class="tiny" style="margin-top:.5mm">系统里没有成交数据。签约前以合同实际条款为准，
+            租金上限仍是那份可以拿去谈的锚。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card g" style="">
+      <div class="grid g2" style="gap:5mm;align-items:center">
+        <div>
+          <h3>一条贯穿全局的方法学底线</h3>
+          <p class="small" style="margin-bottom:0">
+            本项目有一条内部红线：<b class="gold">不猜</b>。
+            缺数据就说缺，不用默认值糊过去；口径不同就分开说，<b>不混口径</b>；
+            历史上的结论改了就标注日期，<b class="red">不回填旧结果</b>。
+          </p>
+        </div>
+        <div class="card" style="background:rgba(255,255,255,.6);padding:2.6mm 3mm">
+          <div class="tiny" style="font-weight:800;margin-bottom:1mm">由此产生的两个可验证行为</div>
+          <ul class="tight tiny" style="margin-bottom:0">
+            <li>数据取不到时，产品里会<b>显式输出「取不到」</b>，不回落到旧值</li>
+            <li>结论对假设敏感时，会打出<b>稳健性四档</b>警告（稳健／比较稳健／比较不稳健／不稳健），不给中庸答案</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>伍 · 交付</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">17</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">POST-OPENING</span></div>
+      <h2><span class="no">15</span>已经开了店，同样算得清</h2>
+    </div>
+
+    <div class="card g">
+      <h3>与选址测算的<b>关键分界</b> —— 这张表决定了诊断为什么更可信</h3>
+      <table style="margin-top:1.4mm">
+        <thead><tr>
+          <th style="width:24%"></th>
+          <th style="width:38%">选址测算</th>
+          <th>已开店诊断</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>流水</b></td><td>模型估算（含未标定的价格弹性）</td>
+              <td class="green"><b>用户自报，不估</b></td></tr>
+          <tr><td><b>位置</b></td><td>待定，需要算位置分</td><td>已定，只做经营拆解</td></tr>
+          <tr><td><b>回答</b></td><td>能不能开、租金上限多少</td><td>现在哪里不对、还有多少缓冲</td></tr>
+          <tr class="hl"><td><b>不确定性来源</b></td><td>模型假设</td>
+              <td class="green"><b>只有用户自报数的准确度</b></td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:1.4mm;margin-bottom:0">
+        <b>这条设计带来一个重要好处：</b>选址侧那个"未标定的价格弹性"在已开店场景里
+        <b class="green">根本不存在</b> —— 流水是用户自报的事实。
+        所以<b>诊断结论的不确定性远小于选址结论</b>。
+      </p>
+    </div>
+
+    <div>
+      <h3>实测案例：宁波 · 30㎡ 奶茶 · 自报月流水 8 万 · 月租 1.2 万 · 2 人 · 蜜雪冰城</h3>
+      <div class="grid g4" style="gap:2.6mm;margin-bottom:2.4mm">
+        <div class="kpi"><div class="lab">毛利率（产品口径）</div><div class="val">65.0<span class="u">%</span></div></div>
+        <div class="kpi"><div class="lab">扣渠道后毛利率</div><div class="val">57.3<span class="u">%</span></div>
+          <div class="tiny">外卖抽成另吃 7.7%</div></div>
+        <div class="kpi"><div class="lab">月净利 / 净利率</div><div class="val">¥6,386</div>
+          <div class="tiny">净利率 8.0%</div></div>
+        <div class="kpi a"><div class="lab">安全边际</div><div class="val">16.2<span class="u">%</span></div>
+          <div class="tiny">¥12,951 —— 再跌这么多就转亏</div></div>
+      </div>
+
+      <div class="grid g2" style="gap:3mm">
+        <div class="card" style="padding:2.6mm 3mm">
+          <div class="tiny" style="font-weight:800;margin-bottom:1.2mm">成本拆解（11 项）</div>
+          <div class="tiny mono" style="line-height:1.75">
+            月物料 ¥25,600 ｜ 月损耗 ¥2,400<br>
+            月外卖抽成 ¥6,160 ｜ 月人工 ¥11,520<br>
+            月租金 ¥12,000 ｜ 月水电 ¥1,462<br>
+            月场地附加 ¥4,800 ｜ 月税 ¥1,600<br>
+            月摊销 ¥5,556 ｜ 月品牌费 ¥1,317 ｜ 月杂费 ¥1,200<br>
+            <span style="border-top:.5pt solid var(--line);display:block;margin-top:1mm;padding-top:1mm">
+            月成本合计 <b>¥73,614</b></span>
+          </div>
+        </div>
+        <div class="card g" style="padding:2.6mm 3mm">
+          <div class="tiny" style="font-weight:800;margin-bottom:1.2mm">品牌公开基准对标</div>
+          <div class="stat-in"><span class="l">该品牌公开单店基准月流水</span><span class="v">¥125,532</span></div>
+          <div class="stat-in"><span class="l">这家做到基准的</span><span class="v gold">63.7%</span></div>
+          <div class="divider"></div>
+          <div class="tiny">
+            基准口径：品牌级单店日均 GMV × 30，含堂食+外卖全渠道零售额，
+            披露期间为 2024 年前 9 个月。
+            <b class="red">是品牌平均口径，与同商圈可比店有差距，只能判断量级。</b>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card ok" style="">
+      <h3>诊断结论的方向 —— 这才是"有依据"与"营销玄学"的分界</h3>
+      <p class="small" style="margin-bottom:1.2mm">
+        四条自动生成的诊断：
+      </p>
+      <ul class="tight tiny" style="margin-bottom:1.2mm">
+        <li>毛利率 65.0%（产品口径）；外卖抽成再吃掉流水的 7.7%，扣渠道后 57.3%</li>
+        <li>安全边际 16.2%，属正常偏紧</li>
+        <li>租金余量 ¥6,385/月（实际 ¥12,000 / 可承受 ¥18,385）</li>
+        <li><b>月流水只有该品牌公开单店基准的 64%</b> —— 差距明显，
+            <b class="green">优先排查位置客流与出杯效率，把加推广预算排在后面</b></li>
+      </ul>
+      <p class="tiny" style="margin-bottom:0">
+        最后一条是重点：系统先指出经营面的相对位置，把「多做营销」这类通用建议排在后面。<b>这是有依据的诊断与营销玄学的分界。</b>
+      </p>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>伍 · 交付</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">18</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">UX &amp; LIVE DEMO</span>
+        <span class="pill">操作流程 · 交互指南 · 四张实机截图</span></div>
+      <h2><span class="no">16</span>一句话进，一份判断出</h2>
+      <p class="lead" style="margin-top:1.2mm">
+        目标用户是不懂数据的中小创业者，界面第一件事就是<b>不让他们面对表单</b>；下面五步即完整操作流程。
+      </p>
+    </div>
+
+    <div class="card g" style="padding:1.9mm 3mm">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h3>使用说明 · 操作流程五步</h3><span class="tag gold">不出现表单</span>
+      </div>
+      <table style="font-size:7.2pt;margin-top:1mm">
+        <tbody>
+          <tr><td style="width:24%"><b>① 一句话发起</b></td>
+              <td>写一句人话（例：「杭州武林广场 · 奶茶 · 30㎡ · 月租 8000 · 预算 20 万」）⇒ 解析出<b>品类／地点／面积／租金／预算</b>五项参数；缺的那项弹一张卡补齐，<b>不出现表单</b></td></tr>
+          <tr><td><b>② 挑候选铺位</b></td>
+              <td>铺位未定时自动抓取真实在租店铺并卡片化（含<b>房源性</b>与<b>定位精度</b>标签），<b>点卡片即启动完整分析</b>，不需要打字</td></tr>
+          <tr class="hl"><td><b>③ 看结论</b></td>
+              <td>右侧工作台给出评分卡／雷达图／热力图，左侧「<b>仿真大屏</b>」入口选一次分析即演人流走向（小人沿马路走进本铺与竞品店铺），以及<b>两个金额</b>与报价的差额</td></tr>
+          <tr><td><b>④ 换视角追问</b></td>
+              <td>输入框上方常驻<b>九位专家</b>，可直接问租金、问竞争、问加盟费；含多个诉求的句子会被拆开分别回答</td></tr>
+          <tr><td><b>⑤ 带走结论</b></td>
+              <td>一键导出 PDF；勾选 <b>2–4 个</b>历史分析生成多方案对比看板</td></tr>
+        </tbody>
+      </table>
+      <p class="tiny" style="margin:1mm 0 0">
+        <b>交互指南：</b>不用先看懂指标就能开始；数据取不到会明说缺哪一类；结论不稳会打稳健性四档警告；切专家不产生多余气泡。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:1.8mm">
+      <div class="shot has-img">
+        <div class="no">01</div>
+        <img src="img/17_sim_board.png" alt="仿真大屏 · 人流来源与竞品分流">
+        <div class="cap">仿真大屏 · 人流来源沿马路走向本铺与竞品</div>
+        <div class="why">小人数量＝客流权重，去向按 Huff 引力分流、<b>持续循环走动</b>；顶栏带<b>来源会话与取证时间</b></div>
+      </div>
+      <div class="shot has-img">
+        <div class="no">02</div>
+        <img src="img/14_demo_badcases.png" alt="快速演示 · 真实反面教材">
+        <div class="cap">快速演示 · 真实反面教材</div>
+        <div class="why">侧栏两个<b>实测低分点位</b>可一键复现，中栏同步显示推理与工具调用</div>
+      </div>
+      <div class="shot has-img">
+        <div class="no">03</div>
+        <img src="img/08_cand_deal_tags.png" alt="候选商铺卡片">
+        <div class="cap">候选商铺卡片 · 点卡片即启动分析</div>
+        <div class="why">一次抓回 <b>15 个真实在租铺位</b>，每张卡带<b>房源性</b>与<b>定位精度</b>标签</div>
+      </div>
+      <div class="shot has-img">
+        <div class="no">04</div>
+        <img src="img/16_auditor_796.png" alt="模型审计师实时口径">
+        <div class="cap">审计师实时口径 · 在用样本与扩样并列</div>
+        <div class="why">在用 <b>75 家</b>中位锚点（取自 83 家·剔 8 家低证据点），握着 <b>796 家</b>扩样并说明「为什么还没敢用」</div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:2.6mm 3.2mm">
+      <div class="grid g2" style="gap:4mm;align-items:center">
+        <div class="tiny">
+          另附<b>演示视频</b>（≤5 分钟）与<b>可运行链接</b>，评委可直接实测：
+          视频给过程的连贯性，本页截图给可定格的证据。
+        </div>
+        <div class="tiny">
+          容错准备：本地 POI 库优先，<b>现场断网也能出完整结论</b>；LLM 全挂走规则兜底，<b>关键结论不丢</b>；访问门禁防止演示额度被刷光。
+        </div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>伍 · 交付</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">19</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">VALUE &amp; ROADMAP</span></div>
+      <h2><span class="no">17</span>它能带来什么，接下来往哪走</h2>
+    </div>
+
+    <div class="card ink" style="padding:3mm 4mm">
+      <p class="small" style="margin-bottom:0;font-size:11.4pt;line-height:1.5;color:#f7f3e4;font-weight:600">
+        选址咨询在市场上并不稀缺 —— <b style="color:#f0d9a6">稀缺的是"给个体创业者用得起"的那一种</b>。
+      </p>
+    </div>
+
+    <div class="grid g2" style="gap:3.6mm">
+      <div class="card g" style="padding:2.8mm 3.2mm">
+        <h3>价值主张</h3>
+        <table style="font-size:7.9pt">
+          <thead><tr><th style="width:26%">维度</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><b>普惠化</b></td><td>让普通创业者<b>像拥有专业顾问一样</b>做有依据的决策</td></tr>
+            <tr><td><b>低门槛</b></td><td>服务被排除在外的个体创业者（市面选址服务为付费订阅制）</td></tr>
+            <tr class="hl"><td><b>授人以渔</b></td><td>用经济学原理解释每个判断，不只给答案，还给证据</td></tr>
+            <tr><td><b>可复现可追溯</b></td><td>每个数字带来源与取证时间，报告可导出存档</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card g" style="padding:2.6mm 3mm">
+        <h3>商业模式</h3>
+        <table style="font-size:7.2pt;margin-top:1mm">
+          <tbody>
+            <tr><td style="width:19%"><b>定位</b></td>
+                <td><b class="gold">"顾问"</b> —— 给"看不懂数据的人"做判断，
+                    服务那些被排除在专业选址决策之外的个体创业者</td></tr>
+            <tr><td><b>C 端／B 端</b></td>
+                <td>个体创业者的<b>单次选址评估</b>；品牌拓展方与商圈运营方的 <b>API／报告</b>服务</td></tr>
+            <tr class="hl"><td><b>定价</b></td>
+                <td>锚在市面商圈数据服务的订阅价与一次实地咨询费之间，<b>按"一次评估"计费</b>；
+                    成本侧撑得住 —— 评分与租金反解全在本地完成，<b>单次评估 0 次 API 调用</b></td></tr>
+            <tr><td><b>获客</b></td>
+                <td>① 品牌方签约前的选址环节自然带入　② 本地创业者社群与商圈运营方
+                    　③ 已开店店主的复购（诊断 → 改善 → 再评估）</td></tr>
+            <tr><td><b>单位经济</b></td>
+                <td>可变成本主要来自 LLM token 与偶发的实时接口调用；本地 POI 库已把同一地址的
+                    接口调用<b>从 2 次降到 1 次</b>、重复分析降为 <b>0 次</b>，边际成本随复用继续下降</td></tr>
+          </tbody>
+        </table>
+        <p class="tiny" style="margin:1.4mm 0 0">
+          个体创业者是抗风险能力最弱的一群经营者，一次选址失误往往直接耗尽家庭积蓄。
+          把不可逆的选址决策前置为可逆的信息决策，本质上是
+          <b class="gold">为最缺信息优势的人，补上一次专业判断的机会</b>。
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <h3>把"已知局限"变成"下一步要解决的问题"</h3>
+      <table style="font-size:7.9pt">
+        <thead><tr><th class="c" style="width:9%">优先级</th><th style="width:29%">要解决的问题</th>
+          <th style="width:35%">推进方式</th><th>为什么现在没做</th></tr></thead>
+        <tbody>
+          <tr class="hl"><td class="c"><span class="tag red">P1</span></td>
+            <td><b>需求-价格弹性未标定</b><br><span class="tiny">所有流水结论带一个未标定的自由度</span></td>
+            <td>需要品牌级日单量与营业额数据；批量计算能力已具备，缺的是数据授权</td>
+            <td>公开披露数据无法反推单店日单量分布</td></tr>
+          <tr><td class="c"><span class="tag amber">P2</span></td>
+            <td><b>本地 POI 库覆盖不完整</b><br><span class="tiny">覆盖率随商圈浮动 31%~95%</span></td>
+            <td>对已识别的高价值商圈定向补库，并把覆盖率作为报告字段显式输出</td>
+            <td>受第三方接口配额与补库成本限制</td></tr>
+          <tr><td class="c"><span class="tag amber">P2</span></td>
+            <td><b>验证覆盖的缺口</b><br><span class="tiny">谈判话术无机器断言、视觉无负样本</span></td>
+            <td>为话术引入"数字可溯源"的机器校验；补门头图负样本集</td>
+            <td>自由文本的断言天然不稳定，需要先设计出可靠判据</td></tr>
+          <tr><td class="c"><span class="tag ink">P3</span></td>
+            <td><b>地域与品类覆盖</b>／<b>真实用户前后对比</b></td>
+            <td>新增一省先补库、再标定、再开品类，不跳步；同时收集"看了结论有没有改变决策"的回访</td>
+            <td>品类画像需要逐个标定；回访需要时间积累</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid g3" style="gap:3mm">
+      <div class="card g" style="padding:2.6mm 3mm">
+        <h3>产品原则（不变的部分）</h3>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li><b>不猜</b>：缺数据就说缺　·　<b>不混口径</b>：不同来源分开说</li>
+          <li><b>不静默</b>：校正与失败都出声　·　<b>不改写历史</b>：旧结论不因新口径回填</li>
+        </ul>
+      </div>
+      <div class="card g" style="padding:2.6mm 3mm">
+        <h3>技术演进方向</h3>
+        <ul class="tight tiny" style="margin-bottom:0">
+          <li>知识库上千条时迁移<b>向量检索</b>（已预留路径）；<b>图增强</b>本轮对照为负结果，待新判据</li>
+          <li>把<b>实机探针</b>纳入持续集成，缩短"静态绿、实机红"的窗口</li>
+        </ul>
+      </div>
+      <div class="card ink" style="padding:2.6mm 3mm">
+        <h3 style="color:#f0d9a6">一句话收束</h3>
+        <p class="tiny" style="color:#d5e2e1;margin-bottom:0">
+          址南针做的是<b style="color:#f7f3e4">把选址决策从运气变成计算</b>的那一步。
+        </p>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center;padding:2mm">
+      <div style="font-size:12.6pt;font-weight:800;color:var(--ink);letter-spacing:.02em">
+        址南针 <span class="gold">·</span> 浙江商铺选址决策智能体
+      </div>
+      <div class="small" style="margin-top:.6mm;color:var(--muted)">
+        位置决定流量的上限，净利润决定能不能活到兑现那天
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>总结</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">20</div></div>
+
+  <div class="bd">
+    <div>
+      <div class="sech"><span class="kicker">AT A GLANCE</span></div>
+      <h2><span class="no">18</span>一页看完这份作品</h2>
+      <p class="lead" style="margin-top:1.2mm">
+        把一次选址决策，从「这个位置多少分」推进到「<b>这笔账算不算得过来</b>」。
+      </p>
+    </div>
+
+    <div class="card ink" style="padding:3.2mm 4mm">
+      <div class="grid g4" style="gap:3mm;text-align:center">
+        <div><div style="font-size:16pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">80ms</div>
+          <div class="tiny" style="color:#9db3b6">一次完整评分 P50<br>缓存命中 · 0 次 API</div></div>
+        <div><div style="font-size:16pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">44,233</div>
+          <div class="tiny" style="color:#9db3b6">条浙江 POI 本地库<br>断网可算、毫秒级</div></div>
+        <div><div style="font-size:16pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">17 + 52</div>
+          <div class="tiny" style="color:#9db3b6">套离线门禁 ＋ 实机断言<br>抓出过 10 个真问题</div></div>
+        <div><div style="font-size:16pt;font-weight:800;color:#f0d9a6;font-variant-numeric:tabular-nums">32</div>
+          <div class="tiny" style="color:#9db3b6">条已知局限主动披露<br>写在产品里，不藏脚注</div></div>
+      </div>
+    </div>
+
+    <div>
+      <h3>这个作品做了什么</h3>
+      <div class="grid g3" style="gap:3mm">
+        <div class="card g" style="padding:2.4mm 2.8mm">
+          <div class="tag gold">判断</div>
+          <div class="small" style="margin-top:1mm">把「位置值不值得抢」翻译成「<b>净利润算不算得过来</b>」，
+            并给出反解出的租金天花板作为可谈判的筹码。</div>
+        </div>
+        <div class="card g" style="padding:2.4mm 2.8mm">
+          <div class="tag gold">算法</div>
+          <div class="small" style="margin-top:1mm">Huff 引力把位置拆成 D×P，
+            成本结构逐项扣减，非补偿性<b>一票否决</b>堵死"位置分高洗白亏损"。</div>
+        </div>
+        <div class="card g" style="padding:2.4mm 2.8mm">
+          <div class="tag gold">交互</div>
+          <div class="small" style="margin-top:1mm">一句话进、一份判断出。
+            <b>九位专家</b>共享同一套结论，各切一个专业视角回答追问。</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>与现有做法相比，差在哪</h3>
+      <table style="font-size:7.9pt">
+        <thead><tr><th style="width:18%">维度</th><th style="width:41%">常见的选址工具</th><th>址南针</th></tr></thead>
+        <tbody>
+          <tr><td><b>给什么</b></td><td>一个分数、一个热度指数、或一张地图截图</td>
+            <td><b>一个能下决定的判断</b>：能不能赚、多久回本、最多付多少租金</td></tr>
+          <tr class="hl"><td><b>按谁的口径</b></td><td>通用基准与品牌平均值</td>
+            <td><b>你自己的成本结构</b>：11 项成本逐项扣减后反解</td></tr>
+          <tr><td><b>不确定怎么处理</b></td><td>不标，给一个看着确定的数</td>
+            <td><b>标出来</b>：口径区间 ＋ 稳健性档位 ＋ 32 条局限</td></tr>
+          <tr><td><b>能不能复现</b></td><td>换个时间再算，结果可能不同</td>
+            <td><b>同一组输入必得同一组输出</b>：17 套门禁 ＋ 52 条实机断言钉住</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <h3>三件我们坚持做的事</h3>
+      <div class="grid g3" style="gap:3mm">
+        <div class="card g" style="padding:2.4mm 2.8mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">把不可逆变可逆</div>
+          <div class="tiny" style="margin-top:.6mm">选址是沉没成本决策，我们把它前置成签字之前的一次信息判断。</div>
+        </div>
+        <div class="card g" style="padding:2.4mm 2.8mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">敢自我否定</div>
+          <div class="tiny" style="margin-top:.6mm">图检索实验输了就退回，品牌标定把 7 个"显著"改回 3 个。</div>
+        </div>
+        <div class="card g" style="padding:2.4mm 2.8mm">
+          <div class="tiny" style="font-weight:800;color:var(--ink)">宁可少，不掺沙</div>
+          <div class="tiny" style="margin-top:.6mm">缺数据就说缺，缺到影响结论就明说给不出确定答案。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote">
+      <span class="q">"</span>算这个位置值多少分的工具已经有了。址南针补的是下一句 ——
+      <b>这笔账算不算得过来</b>：位置决定流量的上限，净利润决定能不能活到兑现那天。
+    </div>
+
+    <div class="card" style="text-align:center;padding:2.6mm">
+      <div style="font-size:12.4pt;font-weight:800;color:var(--ink);letter-spacing:.02em">
+        址南针 <span class="gold">·</span> 浙江商铺选址决策智能体
+      </div>
+      <div class="small" style="margin-top:.6mm;color:var(--muted)">
+        位置决定流量的上限，净利润决定能不能活到兑现那天
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+/* 封面罗盘水印：视觉语言取自应用本体 public/sidebar.js 的 ZS_SVG
+   三色：藏青 #0e353a / 金 #c9a45c / 米白 #fdfbee；24 刻度、四正向加长、双色针 */
+(function(){
+  function ticks(cx,cy,r1,r2,step,longEvery,sw1,sw2,color){
+    var s='';
+    for(var i=0;i<360;i+=step){
+      var long=(i%longEvery===0);
+      var r=r1;
+      var a=(i-90)*Math.PI/180;
+      var x1=cx+r*Math.cos(a), y1=cy+r*Math.sin(a);
+      var x2=cx+r2*Math.cos(a), y2=cy+r2*Math.sin(a);
+      s+='<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+
+         '" stroke="'+color+'" stroke-width="'+(long?sw2:sw1)+'" stroke-linecap="round"/>';
+    }
+    return s;
+  }
+  function compass(cx,cy,scale,op){
+    var t=[],gold='#e5c98a',ink='#c9a45c',cream='#f0d9a6';
+    var s='<g opacity="'+op+'">';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(cx-2)+'" fill="none" stroke="'+cream+'" stroke-width="1.6"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(cx-14)+'" fill="none" stroke="'+cream+'" stroke-width="1"/>';
+    s+=ticks(cx,cy,cx-30,cx-4,15,90,1,3,cream);
+    /* 双色针：北半金、南半浅金（统一金色系，避免在深底上偏色成灰绿） */
+    s+='<path d="M'+cx+' '+(cy*0.52)+' L'+(cx+cx*0.115)+' '+cy+' L'+(cx-cx*0.115)+' '+cy+' Z" fill="'+cream+'"/>';
+    s+='<path d="M'+(cx-cx*0.115)+' '+cy+' L'+(cx+cx*0.115)+' '+cy+' L'+cx+' '+(cy*1.48)+' Z" fill="'+ink+'" fill-opacity=".85"/>';
+    s+='<circle cx="'+cx+'" cy="'+(cy*0.66)+'" r="3.6" fill="'+gold+'"/>';
+    s+='<text x="'+cx+'" y="'+(cy*1.68)+'" font-size="19" fill="'+cream+'" text-anchor="middle" font-weight="700">南</text>';
+    s+='</g>';
+    return s;
+  }
+  var w1=document.getElementById('wm1');
+  if(w1) w1.innerHTML='<svg viewBox="0 0 300 300" width="100%" height="100%">'+compass(150,150,1,1)+'</svg>';
+  var w2=document.getElementById('wm2');
+  if(w2) w2.innerHTML='<svg viewBox="0 0 300 300" width="100%" height="100%">'+compass(150,150,1,1)+'</svg>';
+})();
+</script>
+</body>
+</html>

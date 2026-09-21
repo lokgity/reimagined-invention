@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>店铺经营月报</title>
+<style>
+  :root{
+    --ink:#1f2430;
+    --ink2:#4a5361;
+    --ink3:#7a8394;
+    --line:#d8dde5;
+    --accent:#0f766e;
+    --accent-soft:#eefbf7;
+    --accent-line:#8dd3c7;
+    --amber-soft:#fff9ec;
+    --amber-line:#f0c674;
+    --req:#b4442e;
+  }
+  @page { @bottom-center { content: "店铺经营月报　·　第 " counter(page) " 页"; } }
+
+  body{
+    font-family:"宋体",serif;
+    color:var(--ink);
+    font-size:11.5pt;
+    line-height:1.8;
+    margin:0;
+  }
+  h1{
+    font-family:"黑体",sans-serif;
+    font-size:23pt;
+    letter-spacing:2pt;
+    margin:0 0 2pt;
+    color:var(--ink);
+  }
+  .sub{
+    font-family:"黑体",sans-serif;
+    font-size:10.5pt;
+    color:var(--ink3);
+    letter-spacing:.5pt;
+    margin:0 0 14pt;
+    padding-bottom:10pt;
+    border-bottom:1.5pt solid var(--accent-line);
+  }
+  h2{
+    font-family:"黑体",sans-serif;
+    font-size:14pt;
+    color:var(--accent);
+    margin:20pt 0 8pt;
+    padding-left:9pt;
+    border-left:4pt solid var(--accent);
+  }
+  p{margin:6pt 0;}
+  ul{margin:6pt 0;padding-left:20pt;}
+  li{margin:3pt 0;}
+  .note{
+    background:var(--accent-soft);
+    border-left:4pt solid var(--accent-line);
+    padding:8pt 12pt;
+    margin:10pt 0;
+  }
+  .warn{
+    background:var(--amber-soft);
+    border-left:4pt solid var(--amber-line);
+    padding:8pt 12pt;
+    margin:10pt 0;
+  }
+  .note p, .warn p{margin:3pt 0;}
+  .field{
+    font-family:"黑体",sans-serif;
+    font-size:12.5pt;
+    letter-spacing:1pt;
+    margin:15pt 0 3pt;
+  }
+  .hint{
+    color:var(--ink2);
+    font-size:10.5pt;
+    margin:0;
+  }
+  .req{color:var(--req);font-family:"黑体",sans-serif;}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:10pt 0;
+    font-size:10.5pt;
+  }
+  th{
+    font-family:"黑体",sans-serif;
+    background:var(--accent-soft);
+    border:0.75pt solid var(--line);
+    padding:5pt 7pt;
+    text-align:left;
+  }
+  td{
+    border:0.75pt solid var(--line);
+    padding:5pt 7pt;
+    vertical-align:top;
+  }
+  .summary{
+    font-size:12pt;
+    line-height:2.2;
+    background:#f7f9fb;
+    border:0.75pt solid var(--line);
+    padding:10pt 12pt;
+    margin:10pt 0;
+  }
+</style>
+</head>
+<body>
+<section role="body">
+
+<h1>店铺经营月报</h1>
+<p class="sub">经营测算专家　·　输入表　·　填写样例（示例数据）</p>
+
+<div class="warn">
+  <p><strong>这是一份「填写样例」，不是空白表。</strong></p>
+  <p>里面的数字全部是编出来的示例，用来演示每一栏该怎么填、填到多细。请把数字换成你自己的，或者改用另一份空白版《店铺经营月报》 —— 把示例数字照搬上传，只会换回一份跟你无关的诊断结论。</p>
+  <p>下面正文里那句「本表一处示例数字都不印」说的是<strong>空白版</strong>；这份样例印出来的那组数，就是为了示范怎么填。</p>
+</div>
+<h2>这份表是干什么用的</h2>
+<p>把你这家店<strong>最近一个完整自然月</strong>的真实经营数据，一次填清楚，交给「经营测算专家」，换回一份经营诊断：</p>
+<ul>
+  <li>成本逐项拆解（房租、人工、物料、损耗、水电、折旧……一共十一项）</li>
+  <li>三种毛利口径同时算：产品口径毛利、扣掉外卖抽成之后的毛利、净利率</li>
+  <li>安全边际：流水跌到什么程度才开始亏</li>
+  <li>回本周期，以及跟品牌公开经营数据的对标</li>
+</ul>
+
+<div class="note">
+  <p><strong>两条使用纪律，先说在前面：</strong></p>
+  <p>一、<strong>流水只按你填的数算，专家不替你估。</strong>填多少就按多少算，所以宁可填得难看，也不要填得好看。</p>
+  <p>二、<strong>本表一处示例数字都不印。</strong>表里出现的每一个数字，都必须是你自己填的 —— 这是为了不让表上印着的样板值被当成你的真实数据读走。所以请照着单位，把你的数字填进空格里。</p>
+</div>
+
+<h2>第一章　怎么用</h2>
+<p>填好之后，两条路任选一条，喂进去的是同一批数字，结论一致：</p>
+<ul>
+  <li><strong>上传本文件（推荐，数字不用重打一遍）</strong>：在 Word 里把空格填上，保存后作为附件发给 Agent，再补一句话，例如「我这个店经营得怎么样」。</li>
+  <li><strong>只复制一段话</strong>：只填第四章那段摘要，复制粘贴到对话框里。</li>
+</ul>
+<p><strong>必填三项</strong>没填全时，专家会先向你追问，<strong>绝不会替你猜</strong>。选填项不填，专家会按品类经验值代跑，并在结论里注明哪些数是你的、哪些是经验值。</p>
+
+<h2>第二章　必填三项</h2>
+<div class="warn"><p>这一章缺任何一项都出不了报告。</p></div>
+
+<p class="field">品类：奶茶</p>
+<p class="hint"><span class="req">必填。</span>写你这家店实际卖什么，行业里通行怎么叫就怎么写。意思相近的常见叫法都认，不必自己对齐口径。</p>
+
+<p class="field">月流水：135000元</p>
+<p class="hint"><span class="req">必填。</span>你的店最近一个完整自然月的<strong>总营业额</strong> —— 不是利润，也不是某一天的数。如果只记得某一天，不要折算后填在这里，改在第三章填「日单量」，专家会按月折算，并在结论里标明那是折算值。</p>
+
+<p class="field">月租金：15000元</p>
+<p class="hint"><span class="req">必填。</span>每月实际付给房东的租金。<strong>不要把</strong>转让费、押金、物业费、水电费混进来 —— 它们不是按月固定发生的支出，混进来会把成本算高、把净利算低。</p>
+
+<h2>第三章　选填项</h2>
+<div class="warn"><p>填得越全，结论越准。不确定的可以留空，别猜。</p></div>
+
+<p class="field">经营面积：32平方米</p>
+<p class="hint">实际营业使用面积。填了它，装修与设备这类按面积估的成本就不会跑偏。</p>
+
+<p class="field">店铺所在城市：杭州</p>
+<p class="hint">直接写你这家店所在的城市名。不同城市的人工与租金水平不同，会影响到跟品牌公开数据的对标。本表只覆盖浙江省内的城市；填了省外的城市名，专家会说明取不到口径，而不会硬套。</p>
+
+<p class="field">加盟品牌：蜜雪冰城</p>
+<p class="hint">有加盟就写品牌名。没有加盟、牌子是自己起的，这一栏<strong>留空</strong>即可 —— 留空时专家不会拿别家的数据套你头上，而会明确说清「没有可对标的公开经营数据」。</p>
+
+<p class="field">全职员工：3人</p>
+<p class="hint">含店主本人；兼职按半个算。不填就按品类经验值估。</p>
+
+<p class="field">前期投入：370000元</p>
+<p class="hint">一次性投进去的钱，<strong>含</strong>加盟费、保证金、设备、装修、首批物料；<strong>不含</strong>房租押金（押金是押金，不是花掉的钱）。这一项直接决定回本周期：<strong>回本周期等于前期投入除以每月净利</strong>，所以它填得准不准，比填得小不小重要得多。</p>
+
+<p class="field">每单金额：15元</p>
+<p class="hint">平均每一单的成交金额（顾客结一次账付多少钱），<strong>不是单杯价</strong>。这一项只在月流水记不清的时候才用得上，用来配合「日单量」折算月流水。</p>
+
+<p class="field">日单量：300单</p>
+<p class="hint">平均每天成交多少单。同样只在<strong>记不清月流水</strong>时才需要填。把「每单金额」和「日单量」两项都填上，专家会自己折成月流水，并在结论里标明这是折算来的。</p>
+
+<h2>第四章　填好后的一键摘要</h2>
+<p>把上面填好的数字照抄进下面这一行，然后整行复制到对话里即可。两处请保持一致；只填一处也能读，两处都填时以这一段为准。</p>
+
+<div class="summary">品类奶茶；月流水135000元；月租金15000元；经营面积32平方米；城市杭州；加盟品牌蜜雪冰城；全职员工3人；前期投入370000元；每单金额15元；日单量300单。</div>
+
+<h2>第五章　口径说明与常见坑</h2>
+<p>这张表看起来简单，但有几处极易写错，写错了报告的结论会整套偏掉。逐条对照一下再交：</p>
+<table>
+  <tr><th>容易写错</th><th>正确写法</th><th>写错会怎样</th></tr>
+  <tr><td>把「日流水」填进月流水栏</td><td>月流水栏只填月口径；只有日流水就改填「日单量」</td><td>差出几十倍，成本与回本结论全部失真</td></tr>
+  <tr><td>把利润当流水填</td><td>流水是总收入，不是赚到的钱</td><td>流水被低估，会误判成「这店不行」</td></tr>
+  <tr><td>把转让费和押金算进月租金</td><td>月租金只填每月付给房东的那笔</td><td>成本被抬高，容易误判「该关店」</td></tr>
+  <tr><td>把单杯价当每单金额填</td><td>每单金额是一单的总成交额，通常高于单杯价</td><td>折算出的月流水被低估</td></tr>
+  <tr><td>前期投入漏掉加盟费</td><td>加盟费、保证金都要算进去</td><td>回本周期被低估，看起来比实际更快回本</td></tr>
+  <tr><td>前期投入里塞进房租押金</td><td>押金单列，不进投入</td><td>月成本被重复计一遍，净利偏低</td></tr>
+  <tr><td>面积填建筑面积</td><td>填实际营业使用面积</td><td>按面积估的装修与设备成本偏高</td></tr>
+</table>
+<p>有一点要坦白说清楚：<strong>本表不含成本明细的自动测算</strong>。你不需要在这里逐项报出人工、水电、物料 —— 专家会按品类画像和你的流水、租金、面积把十一项成本拆出来，再跟你自己账上对。这也是为什么下面附的成本自查表<strong>只给你自己对账用，不参与自动测算</strong>。</p>
+
+<h2>附录　本月成本自查表（自用，不参与自动测算）</h2>
+<p>填你自己账上的数，用来跟专家拆出来的成本逐项对照。<strong>不必填</strong>，也不必与上文重复。</p>
+<table>
+  <tr><th>成本项目</th><th>本月金额</th><th>备注</th></tr>
+  <tr><td>员工工资</td><td>18000</td><td>含店主自己的工资也可以写</td></tr>
+  <tr><td>物料采购</td><td>44000</td><td>原材料、包装以外的耗材</td></tr>
+  <tr><td>包装耗材</td><td>4200</td><td>杯、盖、吸管、纸袋</td></tr>
+  <tr><td>水电燃气</td><td>1700</td><td></td></tr>
+  <tr><td>平台抽成</td><td>10400</td><td>外卖平台扣走的钱</td></tr>
+  <tr><td>设备折旧与维修</td><td>9500</td><td></td></tr>
+  <tr><td>其他杂项</td><td>11500</td><td>推广、订阅、杂费</td></tr>
+  <tr><td>合计</td><td>99300</td><td>租金不在这里，见第二章</td></tr>
+</table>
+
+<div class="note">
+  <p><strong>说明：</strong>租金、抽成、损耗也都是成本的一部分。专家拆解时会单独列出「外卖抽成占流水比」与「扣掉渠道之后的毛利率」 —— 抽成率不能直接跟毛利率混着比，这是两回事。</p>
+</div>
+
+</section>
+</body>
+</html>

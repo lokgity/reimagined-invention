@@ -1,0 +1,544 @@
+{
+  "version": 8,
+  "method": "brand_blind_residual_within_proxy_district",
+  "distance": "walking_road_network (amap /v3/distance type=3, frozen in data/road_distance.db)",
+  "supersedes": "brand_uplift_v3.json (v7, haversine)",
+  "note": "v8 = v7 的规则**逐字不变**（品牌盲残差 / K=5 收缩 / TIER1 免 clamp / 同 proxy district 中位），**只把距离口径从直线换成步行路网**。",
+  "params": {
+    "anchor_max_m": 1000,
+    "use_min_n": 5,
+    "shrink_K": 5.0,
+    "min_n_uplift": 3,
+    "uplift_clamp": [
+      0.8,
+      1.25
+    ],
+    "clamp_tier1_exempt": true,
+    "boot_seed": 20260918,
+    "tier1_n": 10,
+    "coarse_factor": 2.5,
+    "radius_m": 500
+  },
+  "sample": {
+    "n_poi": 3959,
+    "n_stores": 3959,
+    "n_anchored": 3563,
+    "n_used": 1508,
+    "n_districts": 1270,
+    "frac": 1.0,
+    "seed": 20260920,
+    "mode": "road"
+  },
+  "coverage": {
+    "api_calls": 4133,
+    "api_fail": 0,
+    "straight_fallback": 0,
+    "fallback_demand": 0,
+    "fallback_share": 0,
+    "road_pairs": 221323,
+    "note": "straight_fallback = 路网库未命中而回退直线的**点数**；非 0 时该产物为混口径，不得直接采用"
+  },
+  "brands": {
+    "李若桃": {
+      "n": 7,
+      "raw": 0.9638,
+      "shrunk": 0.9789,
+      "uplift": 0.9789,
+      "weight": 0.5833,
+      "tier": "TIER2",
+      "ci": [
+        0.8836,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.4
+    },
+    "麦记牛奶": {
+      "n": 23,
+      "raw": 0.901,
+      "shrunk": 0.9187,
+      "uplift": 0.9187,
+      "weight": 0.8214,
+      "tier": "TIER2",
+      "ci": [
+        0.8049,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.4
+    },
+    "个体/杂牌": {
+      "n": 504,
+      "raw": 1.0,
+      "shrunk": 1.0,
+      "uplift": 1.0,
+      "weight": 0.9902,
+      "tier": "TIER2",
+      "ci": [
+        1.0,
+        1.0513
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.0
+    },
+    "瑞幸": {
+      "n": 42,
+      "raw": 1.366,
+      "shrunk": 1.3271,
+      "uplift": 1.3271,
+      "weight": 0.8936,
+      "tier": "TIER1",
+      "ci": [
+        1.1167,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": true,
+      "own_S": 2.2
+    },
+    "茉莉奶白": {
+      "n": 26,
+      "raw": 0.8721,
+      "shrunk": 0.8928,
+      "uplift": 0.8928,
+      "weight": 0.8387,
+      "tier": "TIER2",
+      "ci": [
+        0.8,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.5
+    },
+    "裕莲茶楼": {
+      "n": 8,
+      "raw": 0.9823,
+      "shrunk": 0.9891,
+      "uplift": 0.9891,
+      "weight": 0.6154,
+      "tier": "TIER2",
+      "ci": [
+        0.8,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.5
+    },
+    "喜茶": {
+      "n": 40,
+      "raw": 1.0449,
+      "shrunk": 1.0399,
+      "uplift": 1.0399,
+      "weight": 0.8889,
+      "tier": "TIER2",
+      "ci": [
+        0.9987,
+        1.238
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 2.0
+    },
+    "CoCo": {
+      "n": 55,
+      "raw": 0.982,
+      "shrunk": 0.9835,
+      "uplift": 0.9835,
+      "weight": 0.9167,
+      "tier": "TIER2",
+      "ci": [
+        0.8566,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.8
+    },
+    "古茗": {
+      "n": 200,
+      "raw": 0.997,
+      "shrunk": 0.997,
+      "uplift": 0.997,
+      "weight": 0.9756,
+      "tier": "TIER2",
+      "ci": [
+        0.9404,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 2.2
+    },
+    "蜜雪冰城": {
+      "n": 154,
+      "raw": 1.0,
+      "shrunk": 1.0,
+      "uplift": 1.0,
+      "weight": 0.9686,
+      "tier": "TIER2",
+      "ci": [
+        0.9846,
+        1.0186
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 2.5
+    },
+    "奈雪": {
+      "n": 10,
+      "raw": 1.5447,
+      "shrunk": 1.3632,
+      "uplift": 1.3632,
+      "weight": 0.6667,
+      "tier": "TIER1",
+      "ci": [
+        1.014,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": true,
+      "own_S": 1.8
+    },
+    "茉酸奶": {
+      "n": 19,
+      "raw": 0.9901,
+      "shrunk": 0.9922,
+      "uplift": 0.9922,
+      "weight": 0.7917,
+      "tier": "TIER2",
+      "ci": [
+        0.91,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.6
+    },
+    "沪上阿姨": {
+      "n": 55,
+      "raw": 1.0,
+      "shrunk": 1.0,
+      "uplift": 1.0,
+      "weight": 0.9167,
+      "tier": "TIER2",
+      "ci": [
+        0.9031,
+        1.0325
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.8
+    },
+    "LINLEE": {
+      "n": 28,
+      "raw": 1.0728,
+      "shrunk": 1.0617,
+      "uplift": 1.0617,
+      "weight": 0.8485,
+      "tier": "TIER2",
+      "ci": [
+        1.0,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.5
+    },
+    "爷爷不泡茶": {
+      "n": 33,
+      "raw": 1.0033,
+      "shrunk": 1.0028,
+      "uplift": 1.0028,
+      "weight": 0.8684,
+      "tier": "TIER2",
+      "ci": [
+        0.9493,
+        1.146
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 2.0
+    },
+    "OT另茶": {
+      "n": 5,
+      "raw": 0.77,
+      "shrunk": 0.885,
+      "uplift": 0.885,
+      "weight": 0.5,
+      "tier": "TIER2",
+      "ci": [
+        0.8051,
+        1.0195
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.4
+    },
+    "一点点": {
+      "n": 75,
+      "raw": 0.9841,
+      "shrunk": 0.9851,
+      "uplift": 0.9851,
+      "weight": 0.9375,
+      "tier": "TIER2",
+      "ci": [
+        0.9155,
+        1.0313
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.6
+    },
+    "茶百道": {
+      "n": 69,
+      "raw": 0.8933,
+      "shrunk": 0.9005,
+      "uplift": 0.9005,
+      "weight": 0.9324,
+      "tier": "TIER2",
+      "ci": [
+        0.8548,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.8
+    },
+    "就是柠": {
+      "n": 3,
+      "raw": 0.9031,
+      "shrunk": 0.9637,
+      "uplift": 0.9637,
+      "weight": 0.375,
+      "tier": "TIER2",
+      "ci": [
+        0.9384,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.3
+    },
+    "春莱": {
+      "n": 11,
+      "raw": 1.7531,
+      "shrunk": 1.5177,
+      "uplift": 1.5177,
+      "weight": 0.6875,
+      "tier": "TIER1",
+      "ci": [
+        1.0016,
+        1.25
+      ],
+      "clamped": false,
+      "excluded_ci_1": true,
+      "own_S": 1.4
+    },
+    "霸王茶姬": {
+      "n": 75,
+      "raw": 1.0,
+      "shrunk": 1.0,
+      "uplift": 1.0,
+      "weight": 0.9375,
+      "tier": "TIER2",
+      "ci": [
+        0.9529,
+        1.0385
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 2.0
+    },
+    "贡茶": {
+      "n": 4,
+      "raw": 2.8067,
+      "shrunk": 1.803,
+      "uplift": 1.25,
+      "weight": 0.4444,
+      "tier": "TIER2",
+      "ci": [
+        1.25,
+        1.25
+      ],
+      "clamped": true,
+      "excluded_ci_1": true,
+      "own_S": 1.4
+    },
+    "书亦烧仙草": {
+      "n": 2,
+      "raw": 0.9962,
+      "shrunk": 0.9989,
+      "uplift": 1.0,
+      "weight": 0.2857,
+      "tier": "TIER3",
+      "ci": [
+        0.9978,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.7
+    },
+    "茶理宜世": {
+      "n": 2,
+      "raw": 0.9879,
+      "shrunk": 0.9966,
+      "uplift": 1.0,
+      "weight": 0.2857,
+      "tier": "TIER3",
+      "ci": [
+        0.9936,
+        0.9995
+      ],
+      "clamped": false,
+      "excluded_ci_1": true,
+      "own_S": 1.5
+    },
+    "周四晚": {
+      "n": 2,
+      "raw": 1.9828,
+      "shrunk": 1.2808,
+      "uplift": 1.0,
+      "weight": 0.2857,
+      "tier": "TIER3",
+      "ci": [
+        1.0039,
+        1.25
+      ],
+      "clamped": true,
+      "excluded_ci_1": true,
+      "own_S": 1.6
+    },
+    "乐乐茶": {
+      "n": 13,
+      "raw": 0.9774,
+      "shrunk": 0.9836,
+      "uplift": 0.9836,
+      "weight": 0.7222,
+      "tier": "TIER2",
+      "ci": [
+        0.9094,
+        1.0926
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.6
+    },
+    "Tamkoko泰柯茶园": {
+      "n": 8,
+      "raw": 0.8394,
+      "shrunk": 0.9012,
+      "uplift": 0.9012,
+      "weight": 0.6154,
+      "tier": "TIER2",
+      "ci": [
+        0.8,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.2
+    },
+    "7分甜": {
+      "n": 1,
+      "raw": 0.7115,
+      "shrunk": 0.9519,
+      "uplift": 1.0,
+      "weight": 0.1667,
+      "tier": "TIER3",
+      "ci": null,
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.5
+    },
+    "益禾堂": {
+      "n": 5,
+      "raw": 0.961,
+      "shrunk": 0.9805,
+      "uplift": 0.9805,
+      "weight": 0.5,
+      "tier": "TIER2",
+      "ci": [
+        0.8,
+        1.0954
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.7
+    },
+    "宝圆圆": {
+      "n": 4,
+      "raw": 0.9644,
+      "shrunk": 0.9842,
+      "uplift": 0.9842,
+      "weight": 0.4444,
+      "tier": "TIER2",
+      "ci": [
+        0.8,
+        1.0
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.3
+    },
+    "煲珠公": {
+      "n": 10,
+      "raw": 0.936,
+      "shrunk": 0.9573,
+      "uplift": 0.9573,
+      "weight": 0.6667,
+      "tier": "TIER2",
+      "ci": [
+        0.8,
+        1.1613
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.4
+    },
+    "VQ鲜榨果汁": {
+      "n": 1,
+      "raw": 0.5729,
+      "shrunk": 0.9288,
+      "uplift": 1.0,
+      "weight": 0.1667,
+      "tier": "TIER3",
+      "ci": null,
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.3
+    },
+    "闲吉": {
+      "n": 3,
+      "raw": 0.8522,
+      "shrunk": 0.9446,
+      "uplift": 0.9446,
+      "weight": 0.375,
+      "tier": "TIER2",
+      "ci": [
+        0.8724,
+        1.0809
+      ],
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.1
+    },
+    "快乐番薯": {
+      "n": 1,
+      "raw": 0.3801,
+      "shrunk": 0.8967,
+      "uplift": 1.0,
+      "weight": 0.1667,
+      "tier": "TIER3",
+      "ci": null,
+      "clamped": false,
+      "excluded_ci_1": false,
+      "own_S": 1.4
+    }
+  }
+}

@@ -59,7 +59,12 @@ def _search_around(keyword, lng, lat, radius, max_pages=1):
             'extensions': 'all',
         }
         try:
-            data = http_get(amap_url('/v3/place/around', params), timeout=10)
+            # ⚠️ retries=2 必须显式传（2026-09-16 修）。
+            #  http_get 默认 retries=4，退避是 2+4+6+8=20s；而本函数在**评分主路径**上，
+            #  每次地址分析要按 5 个配套类目各调一次 → 最坏 4×10s 超时 + 20s 睡眠 ≈ 60s
+            #  的病理路径。同项目 competitor_insight.py:211 早已把它收敛到 2 并写明理由
+            #  （"退避 2+4+6+8=20s，评分路径上太久"），realtime 这条路上漏了。
+            data = http_get(amap_url('/v3/place/around', params), timeout=10, retries=2)
         except Exception:
             break  # 网络失败, 返回已抓到的
         if data.get('status') != '1':

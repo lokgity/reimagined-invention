@@ -1,0 +1,435 @@
+{
+  "global_": {
+    "REF_DP": 4.8215,
+    "P_REF": 0.6137,
+    "P_REF_unadj": 0.6025,
+    "n": 83,
+    "n_used": 72
+  },
+  "density_adjustment": {
+    "b": -0.013712,
+    "d_ref": 7.2,
+    "r2": 0.1212,
+    "p_b": 0.000614,
+    "n_fit": 70,
+    "note": "P_adj = P - b*(D - d_ref)"
+  },
+  "shrink_K": 5.0,
+  "min_n_reliable": 3,
+  "low_evidence": {
+    "D_max": 3.0,
+    "P_min": 0.8,
+    "count": 11,
+    "stores": [
+      {
+        "名称": "蜜雪冰城(杭州西湖风景名胜区-湖滨公园店)",
+        "品牌": "蜜雪冰城",
+        "D": 0.4,
+        "P": 0.9909
+      },
+      {
+        "名称": "熹子茶馆(杭州湖滨店)",
+        "品牌": "个体/杂牌",
+        "D": 1.8,
+        "P": 0.9406
+      },
+      {
+        "名称": "悦小颜鲜竹奶茶店",
+        "品牌": "个体/杂牌",
+        "D": 0.2,
+        "P": 0.9587
+      },
+      {
+        "名称": "手打柠檬茶",
+        "品牌": "个体/杂牌",
+        "D": 1.8,
+        "P": 0.9346
+      },
+      {
+        "名称": "CoCo都可(海宁银泰店)",
+        "品牌": "CoCo",
+        "D": 2.0,
+        "P": 0.8485
+      },
+      {
+        "名称": "李若桃·手作酸奶铺(嘉兴海宁银泰城店)",
+        "品牌": "李若桃",
+        "D": 2.0,
+        "P": 0.8091
+      },
+      {
+        "名称": "茉莉奶白(嘉兴海宁银泰城店)",
+        "品牌": "茉莉奶白",
+        "D": 2.0,
+        "P": 0.8522
+      },
+      {
+        "名称": "茶百道(海宁银泰百货店)",
+        "品牌": "茶百道",
+        "D": 2.8,
+        "P": 0.8926
+      },
+      {
+        "名称": "渝品燕鲜炖热饮",
+        "品牌": "个体/杂牌",
+        "D": 1.6,
+        "P": 1.0
+      },
+      {
+        "名称": "茶百道(华润店)",
+        "品牌": "茶百道",
+        "D": 0.0,
+        "P": 1.0
+      },
+      {
+        "名称": "LELECHA乐乐茶(嘉兴海宁映运汇店)",
+        "品牌": "乐乐茶",
+        "D": 0.0,
+        "P": 1.0
+      }
+    ]
+  },
+  "brands": {
+    "蜜雪冰城": {
+      "n": 13,
+      "own_S": 2.5,
+      "REF_DP": 5.3055,
+      "P_REF": 0.693,
+      "REF_DP_raw": 5.4916,
+      "P_REF_raw": 0.7235,
+      "P_REF_unadj": 0.7174,
+      "weight": 0.7222,
+      "reliable": true
+    },
+    "个体/杂牌": {
+      "n": 6,
+      "own_S": 1.0,
+      "REF_DP": 4.6689,
+      "P_REF": 0.6306,
+      "REF_DP_raw": 4.5417,
+      "P_REF_raw": 0.6448,
+      "P_REF_unadj": 0.6612,
+      "weight": 0.5455,
+      "reliable": true
+    },
+    "喜茶": {
+      "n": 5,
+      "own_S": 2.0,
+      "REF_DP": 4.4812,
+      "P_REF": 0.6154,
+      "REF_DP_raw": 4.1409,
+      "P_REF_raw": 0.6172,
+      "P_REF_unadj": 0.6176,
+      "weight": 0.5,
+      "reliable": true
+    },
+    "CoCo": {
+      "n": 4,
+      "own_S": 1.8,
+      "REF_DP": 5.4649,
+      "P_REF": 0.6425,
+      "REF_DP_raw": 6.269,
+      "P_REF_raw": 0.6785,
+      "P_REF_unadj": 0.625,
+      "weight": 0.4444,
+      "reliable": true
+    },
+    "LINLEE": {
+      "n": 4,
+      "own_S": 1.5,
+      "REF_DP": 5.9477,
+      "P_REF": 0.6182,
+      "REF_DP_raw": 7.3553,
+      "P_REF_raw": 0.6239,
+      "P_REF_unadj": 0.5664,
+      "weight": 0.4444,
+      "reliable": true
+    },
+    "沪上阿姨": {
+      "n": 4,
+      "own_S": 1.8,
+      "REF_DP": 4.9944,
+      "P_REF": 0.5788,
+      "REF_DP_raw": 5.2106,
+      "P_REF_raw": 0.5352,
+      "P_REF_unadj": 0.4513,
+      "weight": 0.4444,
+      "reliable": true
+    },
+    "茶百道": {
+      "n": 4,
+      "own_S": 1.8,
+      "REF_DP": 6.3156,
+      "P_REF": 0.6654,
+      "REF_DP_raw": 8.1832,
+      "P_REF_raw": 0.7301,
+      "P_REF_unadj": 0.6122,
+      "weight": 0.4444,
+      "reliable": true
+    },
+    "霸王茶姬": {
+      "n": 4,
+      "own_S": 2.0,
+      "REF_DP": 4.4362,
+      "P_REF": 0.6322,
+      "REF_DP_raw": 3.9546,
+      "P_REF_raw": 0.6554,
+      "P_REF_unadj": 0.6664,
+      "weight": 0.4444,
+      "reliable": true
+    },
+    "茉莉奶白": {
+      "n": 3,
+      "own_S": 1.5,
+      "REF_DP": 4.3747,
+      "P_REF": 0.5937,
+      "REF_DP_raw": 3.6299,
+      "P_REF_raw": 0.5603,
+      "P_REF_unadj": 0.4427,
+      "weight": 0.375,
+      "reliable": true
+    },
+    "乐乐茶": {
+      "n": 2,
+      "own_S": 1.6,
+      "REF_DP": 5.4388,
+      "P_REF": 0.666,
+      "REF_DP_raw": 6.9821,
+      "P_REF_raw": 0.7969,
+      "P_REF_unadj": 0.7612,
+      "weight": 0.2857,
+      "reliable": false
+    },
+    "裕莲茶楼": {
+      "n": 2,
+      "own_S": 1.5,
+      "REF_DP": 4.5399,
+      "P_REF": 0.6383,
+      "REF_DP_raw": 3.836,
+      "P_REF_raw": 0.6999,
+      "P_REF_unadj": 0.7205,
+      "weight": 0.2857,
+      "reliable": false
+    },
+    "麦记牛奶": {
+      "n": 2,
+      "own_S": 1.4,
+      "REF_DP": 4.5542,
+      "P_REF": 0.5883,
+      "REF_DP_raw": 3.8859,
+      "P_REF_raw": 0.5248,
+      "P_REF_unadj": 0.5083,
+      "weight": 0.2857,
+      "reliable": false
+    },
+    "OT另茶": {
+      "n": 1,
+      "own_S": 1.4,
+      "REF_DP": 4.3025,
+      "P_REF": 0.5697,
+      "REF_DP_raw": 1.7075,
+      "P_REF_raw": 0.3497,
+      "P_REF_unadj": 0.3881,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "Tamkoko泰柯茶园": {
+      "n": 1,
+      "own_S": 1.2,
+      "REF_DP": 4.278,
+      "P_REF": 0.5641,
+      "REF_DP_raw": 1.5606,
+      "P_REF_raw": 0.3163,
+      "P_REF_unadj": 0.3547,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "VQ鲜榨果汁": {
+      "n": 1,
+      "own_S": 1.3,
+      "REF_DP": 4.6254,
+      "P_REF": 0.5864,
+      "REF_DP_raw": 3.6446,
+      "P_REF_raw": 0.4503,
+      "P_REF_unadj": 0.4339,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "angtea艾熟茶": {
+      "n": 1,
+      "own_S": 1.2,
+      "REF_DP": 4.8326,
+      "P_REF": 0.6486,
+      "REF_DP_raw": 4.888,
+      "P_REF_raw": 0.8236,
+      "P_REF_unadj": 0.8428,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "周四晚": {
+      "n": 1,
+      "own_S": 1.6,
+      "REF_DP": 4.9648,
+      "P_REF": 0.6139,
+      "REF_DP_raw": 5.6814,
+      "P_REF_raw": 0.6154,
+      "P_REF_unadj": 0.5797,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "奈雪": {
+      "n": 1,
+      "own_S": 1.8,
+      "REF_DP": 5.0097,
+      "P_REF": 0.6002,
+      "REF_DP_raw": 5.9505,
+      "P_REF_raw": 0.5331,
+      "P_REF_unadj": 0.4508,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "宝圆圆": {
+      "n": 1,
+      "own_S": 1.3,
+      "REF_DP": 5.3432,
+      "P_REF": 0.6357,
+      "REF_DP_raw": 7.9514,
+      "P_REF_raw": 0.7458,
+      "P_REF_unadj": 0.6855,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "就是柠": {
+      "n": 1,
+      "own_S": 1.3,
+      "REF_DP": 4.6222,
+      "P_REF": 0.6094,
+      "REF_DP_raw": 3.6257,
+      "P_REF_raw": 0.5878,
+      "P_REF_unadj": 0.6043,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "春莱": {
+      "n": 1,
+      "own_S": 1.4,
+      "REF_DP": 4.8965,
+      "P_REF": 0.601,
+      "REF_DP_raw": 5.2715,
+      "P_REF_raw": 0.5375,
+      "P_REF_unadj": 0.4881,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "李若桃": {
+      "n": 1,
+      "own_S": 1.4,
+      "REF_DP": 4.548,
+      "P_REF": 0.585,
+      "REF_DP_raw": 3.1804,
+      "P_REF_raw": 0.4417,
+      "P_REF_unadj": 0.4417,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "柠好鸭": {
+      "n": 1,
+      "own_S": 1.2,
+      "REF_DP": 5.1597,
+      "P_REF": 0.6473,
+      "REF_DP_raw": 6.8507,
+      "P_REF_raw": 0.8158,
+      "P_REF_unadj": 0.7966,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "柠季": {
+      "n": 1,
+      "own_S": 1.0,
+      "REF_DP": 4.6372,
+      "P_REF": 0.5776,
+      "REF_DP_raw": 3.7155,
+      "P_REF_raw": 0.3971,
+      "P_REF_unadj": 0.3505,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "煲珠公": {
+      "n": 1,
+      "own_S": 1.4,
+      "REF_DP": 4.3711,
+      "P_REF": 0.5852,
+      "REF_DP_raw": 2.1189,
+      "P_REF_raw": 0.4432,
+      "P_REF_unadj": 0.4816,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "爷爷不泡茶": {
+      "n": 1,
+      "own_S": 2.0,
+      "REF_DP": 4.5304,
+      "P_REF": 0.5742,
+      "REF_DP_raw": 3.0747,
+      "P_REF_raw": 0.3767,
+      "P_REF_unadj": 0.3575,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "茉酸奶": {
+      "n": 1,
+      "own_S": 1.6,
+      "REF_DP": 5.0392,
+      "P_REF": 0.5999,
+      "REF_DP_raw": 6.1277,
+      "P_REF_raw": 0.5309,
+      "P_REF_unadj": 0.4377,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "茶理宜世": {
+      "n": 1,
+      "own_S": 1.5,
+      "REF_DP": 4.4301,
+      "P_REF": 0.5987,
+      "REF_DP_raw": 2.4732,
+      "P_REF_raw": 0.5237,
+      "P_REF_unadj": 0.5621,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "贡茶": {
+      "n": 1,
+      "own_S": 1.4,
+      "REF_DP": 6.1854,
+      "P_REF": 0.651,
+      "REF_DP_raw": 13.0046,
+      "P_REF_raw": 0.8376,
+      "P_REF_unadj": 0.6703,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "闲吉": {
+      "n": 1,
+      "own_S": 1.1,
+      "REF_DP": 4.4743,
+      "P_REF": 0.5676,
+      "REF_DP_raw": 2.7382,
+      "P_REF_raw": 0.3376,
+      "P_REF_unadj": 0.3184,
+      "weight": 0.1667,
+      "reliable": false
+    },
+    "麒麟大口茶": {
+      "n": 1,
+      "own_S": 1.3,
+      "REF_DP": 4.4749,
+      "P_REF": 0.6371,
+      "REF_DP_raw": 2.7417,
+      "P_REF_raw": 0.7543,
+      "P_REF_unadj": 0.8064,
+      "weight": 0.1667,
+      "reliable": false
+    }
+  }
+}

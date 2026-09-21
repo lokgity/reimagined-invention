@@ -1,0 +1,222 @@
+[
+ {
+  "i": 1,
+  "kids": 0,
+  "contentH": 0,
+  "slack": 0,
+  "gapAvg": 0,
+  "gapMax": 0,
+  "spill": 0,
+  "stretch": "",
+  "pad": ""
+ },
+ {
+  "i": 2,
+  "kids": 5,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 111.5,
+  "gapMax": 407.4,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 3,
+  "kids": 5,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 103.8,
+  "gapMax": 376.5,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 4,
+  "kids": 6,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 65.7,
+  "gapMax": 273.4,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 5,
+  "kids": 3,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 167.9,
+  "gapMax": 323,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 6,
+  "kids": 3,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 179.7,
+  "gapMax": 346.6,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 7,
+  "kids": 4,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 93.4,
+  "gapMax": 247,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 8,
+  "kids": 5,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 83.6,
+  "gapMax": 296.1,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 9,
+  "kids": 4,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 108.1,
+  "gapMax": 298.7,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 10,
+  "kids": 5,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 77,
+  "gapMax": 269.6,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 11,
+  "kids": 5,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 66.3,
+  "gapMax": 226.9,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 12,
+  "kids": 3,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 163.7,
+  "gapMax": 314.6,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 13,
+  "kids": 4,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 95.8,
+  "gapMax": 261.9,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 14,
+  "kids": 5,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 72.1,
+  "gapMax": 249.8,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 15,
+  "kids": 3,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 183.1,
+  "gapMax": 353.4,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 16,
+  "kids": 4,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 78.1,
+  "gapMax": 208.7,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 17,
+  "kids": 4,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 138.1,
+  "gapMax": 388.8,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 18,
+  "kids": 3,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 47.2,
+  "gapMax": 81.6,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 19,
+  "kids": 6,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 62.8,
+  "gapMax": 262.4,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ },
+ {
+  "i": 20,
+  "kids": 4,
+  "contentH": 970.5,
+  "slack": -35.6,
+  "gapAvg": 124.3,
+  "gapMax": 347.3,
+  "spill": 3.5,
+  "stretch": "1",
+  "pad": "1"
+ }
+]
