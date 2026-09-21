@@ -46,7 +46,7 @@ def check(name, cond, detail=''):
 
 
 from ui.access_gate import (gate_config, gate_summary, client_ip, is_private,  # noqa: E402
-                            verify_code, Ledger, _day_key)
+                            verify_code, Ledger, _day_key, demo_reject)
 
 APP = (ROOT / 'src' / 'ui' / 'app_chainlit.py').read_text(encoding='utf-8')
 
@@ -58,7 +58,7 @@ tmpdir = tempfile.mkdtemp(prefix='_gate_')
 
 def cfg(**over):
     base = {'access_code': '', 'per_min': 12, 'per_day': 200,
-            'budget': 400, 'skip_local': True}
+            'budget': 400, 'skip_local': True, 'demo_mode': False}
     base.update(over)
     return base
 
@@ -71,7 +71,8 @@ p('=' * 74)
 p('§1 默认值：本地开发必须"零影响"')
 p('=' * 74)
 _saved = {k: os.environ.get(k) for k in
-          ('ACCESS_CODE', 'RATE_PER_MIN', 'RATE_PER_DAY', 'DAILY_BUDGET', 'GATE_SKIP_LOCAL')}
+          ('ACCESS_CODE', 'RATE_PER_MIN', 'RATE_PER_DAY', 'DAILY_BUDGET',
+           'GATE_SKIP_LOCAL', 'DEMO_MODE')}
 for k in _saved:
     os.environ.pop(k, None)
 d = gate_config()
@@ -80,8 +81,10 @@ check('默认每 IP 12/分钟', d['per_min'] == 12, f'实={d["per_min"]}')
 check('默认每 IP 200/天', d['per_day'] == 200, f'实={d["per_day"]}')
 check('默认全局日预算 400', d['budget'] == 400, f'实={d["budget"]}')
 check('默认内网豁免开启（否则本地开发会被自己限流）', d['skip_local'] is True)
+check('默认演示模式关闭（公网默认拒，防裸奔）', d['demo_mode'] is False)
 check('gate_summary 把开关状态说出来（不静默）',
-      '口令=关' in gate_summary(d) and '内网豁免=是' in gate_summary(d), gate_summary(d))
+      '演示模式=关' in gate_summary(d) and '口令=关' in gate_summary(d)
+      and '内网豁免=是' in gate_summary(d), gate_summary(d))
 os.environ['RATE_PER_MIN'] = 'abc'
 check('环境变量配错 → 回落默认值而不是崩', gate_config()['per_min'] == 12)
 os.environ.pop('RATE_PER_MIN')
@@ -192,7 +195,7 @@ p('=' * 74)
 p('§7 源码接线：闸门真的挂在 Chainlit 入口上')
 p('=' * 74)
 check('导入闸门模块', 'from ui.access_gate import' in APP)
-check('on_chat_start 走口令校验（未过就直接 return）',
+check('on_chat_start 走入口闸（未过就直接 return）',
       'if not await _ensure_access():' in APP)
 check('on_message 走闸门守卫（超限即返回，0 次付费 API）',
       'if not await _gate_guard(caption):' in APP)
@@ -205,6 +208,40 @@ check('口令用 hmac.compare_digest（不做裸 == 拼接）',
       'compare_digest' in (ROOT / 'src' / 'ui' / 'access_gate.py').read_text(encoding='utf-8'))
 check('启动即打印闸门状态（不静默，红线 4）',
       "print('[gate] '" in APP and 'gate_summary' in APP)
+check('app 已切演示模式开关（demo_reject 接入入口）', 'demo_reject' in APP)
+check('口令流程已下线（app 不再 import verify_code）', 'verify_code' not in APP)
+check('app 不再弹口令输入框（AskUserMessage 口令流程移除）',
+      'cl.AskUserMessage' not in APP or '口令' not in APP.split('cl.AskUserMessage')[0])
+
+p('')
+p('=' * 74)
+p('§8 演示模式开关：默认关 → 公网拒；作者开 → 公网放行')
+p('=' * 74)
+check('内网 + 演示关 → 放行（本地开发永远能用）',
+      demo_reject('192.168.1.8', cfg()) == '')
+check('127 回环 + 演示关 → 放行', demo_reject('127.0.0.1', cfg()) == '')
+r_off = demo_reject('8.8.8.8', cfg())
+check('公网 + 演示关 → 拒绝（"未开只能本机用"）',
+      bool(r_off) and '演示模式' in r_off, r_off)
+check('公网 unknown IP + 演示关 → 拒绝（不许静默放行）',
+      bool(demo_reject('unknown', cfg())))
+check('公网 + 演示开 → 放行（限流/预算仍在 _gate_guard 生效）',
+      demo_reject('8.8.8.8', cfg(demo_mode=True)) == '')
+check('公网 + 演示开 + 内网豁免关 → 放行',
+      demo_reject('203.0.113.9', cfg(demo_mode=True, skip_local=False)) == '')
+_saved2 = {k: os.environ.get(k) for k in ('DEMO_MODE',)}
+for k in _saved2:
+    os.environ.pop(k, None)
+check('DEMO_MODE 未设 → demo_mode=False（公网默认拒）',
+      gate_config()['demo_mode'] is False)
+os.environ['DEMO_MODE'] = '1'
+check('DEMO_MODE=1 → demo_mode=True（作者放行）',
+      gate_config()['demo_mode'] is True)
+os.environ['DEMO_MODE'] = '0'
+check('DEMO_MODE=0 → demo_mode=False', gate_config()['demo_mode'] is False)
+for k, v in _saved2.items():
+    if v is not None:
+        os.environ[k] = v
 
 p('')
 p('=' * 74)

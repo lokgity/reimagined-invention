@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-access_gate.py —— 公网访问三道闸门（口令 / 每 IP 限流 / 全局日预算）
+access_gate.py —— 公网访问闸门（演示模式开关 / 每 IP 限流 / 全局日预算）
 =====================================================================
 为什么需要这个模块
 ------------------
@@ -9,14 +9,16 @@ access_gate.py —— 公网访问三道闸门（口令 / 每 IP 限流 / 全局
 付费调用：LLM（火山方舟豆包）和高德 API。而 key 是明文放在 `.env` 里的，服务本身
 **没有登录、没有限流** —— 爬虫顺手一刷，一天配额就没了。
 
-三道闸门
---------
-1. **口令**   `ACCESS_CODE`               —— 只有设了才启用。挡陌生人和爬虫。
+三道闸门（2026-09-22：口令下线，改为"演示模式开关"）
+----------------------------------------------------
+1. **演示开关** `DEMO_MODE`               —— **默认关**。关闭时公网来源一律拒绝，
+                                            只有本机/内网能用；作者在部署平台设
+                                            `DEMO_MODE=1` 才对外开放（公网仍走限流+预算）。
 2. **限流**   `RATE_PER_MIN` / `RATE_PER_DAY`（按 IP）—— 挡单点狂刷。
 3. **预算**   `DAILY_BUDGET`              —— 全局兜底。当天用超后，不再调用任何付费 API。
 
 默认值对**本地开发零影响**：
-· `ACCESS_CODE` 默认为空 → 口令关闭；
+· `DEMO_MODE` 默认为关 → 公网全拒，但内网豁免不受影响；
 · `GATE_SKIP_LOCAL` 默认 1 → 127.0.0.1 / 192.168.* / 10.* 等内网来源全部豁免。
 
 ⚠️ 三条如实说明（别把它当防盗门）
@@ -70,13 +72,16 @@ def gate_config() -> dict:
         'budget': _env_int('DAILY_BUDGET', 400),
         'skip_local': os.getenv('GATE_SKIP_LOCAL', '1').strip().lower()
                       not in ('0', 'false', 'no', 'off'),
+        'demo_mode': os.getenv('DEMO_MODE', '0').strip().lower()
+                     in ('1', 'true', 'yes', 'on'),
     }
 
 
 def gate_summary(cfg: dict) -> str:
     """启动日志用的一行话。开了什么、关了什么必须说出来（红线 4：不静默）。"""
-    return ('口令=%s，每IP %d/分钟·%d/天，全局日预算=%s，内网豁免=%s'
-            % ('开' if cfg['access_code'] else '关',
+    return ('演示模式=%s，口令=%s，每IP %d/分钟·%d/天，全局日预算=%s，内网豁免=%s'
+            % ('开' if cfg['demo_mode'] else '关',
+               '开' if cfg['access_code'] else '关',
                cfg['per_min'], cfg['per_day'],
                str(cfg['budget']) if cfg['budget'] > 0 else '不限',
                '是' if cfg['skip_local'] else '否'))
@@ -270,3 +275,22 @@ def verify_code(guess: str, code: str) -> bool:
         return hmac.compare_digest(str(guess or '').strip(), str(code))
     except Exception:
         return str(guess or '').strip() == str(code)
+
+
+# ---------------------------------------------------------------
+# 演示模式开关（2026-09-22 起替代口令：作者无法把口令发给评委）
+# ---------------------------------------------------------------
+def demo_reject(ip: str, cfg: dict) -> str:
+    """公网开关（先于限流/预算）：放行返回 ``''``，拒绝返回原因文案。
+
+    - **内网来源**（127.* / 10.* / 192.168.* 等，且 `skip_local`）→ 永远放行，
+      本机开发零影响；
+    - **公网来源**：只有作者显式开启演示模式（`DEMO_MODE=1`）才放行；
+    - 公网且未开演示模式 → 拒绝并明确告知"仅限本机访问"（不静默）。
+    """
+    if cfg.get('skip_local') and is_private(ip):
+        return ''
+    if cfg.get('demo_mode'):
+        return ''
+    return ('🔒 演示模式未开启：当前服务仅限本机（作者）访问。'
+            '服务方在本机开启演示模式后，公网才能使用。')

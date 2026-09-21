@@ -50,9 +50,9 @@ from config import CATEGORY_PROFILES, get_profile, DATA_DIR
 from data.query import query_within
 from agent.llm import set_llm_model, MODEL_OPTIONS, DEFAULT_MODEL
 
-# 公网访问三道闸门（口令 / 每 IP 限流 / 全局日预算）—— 纯逻辑在 ui/access_gate.py
+# 公网访问闸门（演示模式开关 / 每 IP 限流 / 全局日预算）—— 纯逻辑在 ui/access_gate.py
 from ui.access_gate import (gate_config, gate_summary, gate_ledger,
-                            client_ip, is_private, verify_code)
+                            client_ip, is_private, demo_reject)
 
 # 启动即打印闸门状态：开了什么、关了什么必须说出来（红线 4：不静默）
 _GATE_CFG = gate_config()
@@ -983,12 +983,12 @@ async def process_set_expert(arg: str, silent: bool = False):
 
 
 # ---------------------------------------------------------------
-# 公网访问闸门（口令 / 每 IP 限流 / 全局日预算）
+# 公网访问闸门（演示模式开关 / 每 IP 限流 / 全局日预算）
 # ---------------------------------------------------------------
 # ⚠️ 为什么要这个：`start_agent.bat` 里是 `--host 0.0.0.0`，一旦做内网穿透或云部署，
 # 任何拿到链接的人都能触发服务端的付费调用（LLM + 高德），而服务本身没有登录也没有限流。
 # 纯逻辑在 `ui/access_gate.py`（有独立离线回归），这里只负责"挂到 Chainlit 的入口上"。
-# 默认 **对本地零影响**：没设 ACCESS_CODE 时口令关闭，内网来源一律豁免。
+# 默认 **对本地零影响**：内网来源一律豁免；公网默认拒绝，只有作者开 DEMO_MODE=1 才开放。
 def _current_ip() -> str:
     """取当前连接的客户端 IP；拿不到就退回 session id（至少能防单会话狂刷）。"""
     try:
@@ -1012,43 +1012,33 @@ def _gate_on() -> bool:
 
 
 async def _ensure_access() -> bool:
-    """第 1 道：访问口令（on_chat_start 入口）。没设 ACCESS_CODE → 直接放行。"""
-    cfg = gate_config()
-    if not cfg['access_code'] or not _gate_on():
-        cl.user_session.set('unlocked', True)
+    """入口闸（on_chat_start）：内网直接放行；公网必须开启演示模式（DEMO_MODE=1）。
+
+    未开演示模式 → 直接结束会话（欢迎语都不发，避免"能看不能用"的困惑）。
+    """
+    if not _gate_on():
         return True
-    cl.user_session.set('unlocked', False)
-    prompt = ('🔒 这是**限流演示服务**，需要访问口令才能使用。\n'
-              '请输入口令（120 秒内无回应将结束等待）：')
-    for attempt in range(3):
-        try:
-            res = await cl.AskUserMessage(content=prompt, timeout=120).send()
-        except Exception:
-            res = None
-        guess = (res or {}).get('content', '') if isinstance(res, dict) else ''
-        if verify_code(guess, cfg['access_code']):
-            cl.user_session.set('unlocked', True)
-            await cl.Message(content='✅ 口令正确，已解锁。').send()
-            return True
-        prompt = f'❌ 口令不正确（{attempt + 1}/3）。请重新输入：'
-    await cl.Message(content='🔒 口令错误次数过多，本次会话已锁定；刷新页面可重新尝试。').send()
-    return False
+    reason = demo_reject(_current_ip(), gate_config())
+    if reason:
+        await cl.Message(content=reason).send()
+        return False
+    return True
 
 
 async def _gate_guard(text: str) -> bool:
-    """第 1~3 道（on_message 入口）。返回 False = 已回话、**不进业务、0 次付费 API**。"""
+    """on_message 入口。返回 False = 已回话、**不进业务、0 次付费 API**。
+
+    顺序：演示模式开关（公网默认拒）→ 控制指令豁免 → 限流/预算记账。
+    """
     cfg = gate_config()
     if not _gate_on():
         return True
-    # 第 1 道兜底通道：AskUserMessage 没渲染出来时，用户直接在输入框打字 = 输口令
-    if cfg['access_code'] and cl.user_session.get('unlocked') is not True:
-        if verify_code((text or '').strip(), cfg['access_code']):
-            cl.user_session.set('unlocked', True)
-            await cl.Message(content='✅ 口令正确，已解锁，可以继续提问。').send()
-        else:
-            await cl.Message(content='🔒 请输入访问口令（口令由服务提供方发放）。').send()
+    # 第 0 道：演示模式未开 → 公网一律拒绝（直接挡，不计数）
+    reason = demo_reject(_current_ip(), cfg)
+    if reason:
+        await cl.Message(content=reason).send()
         return False
-    # 第 2、3 道：控制指令（##新对话## / /expert 等）纯本地，不计额度
+    # 控制指令（##新对话## / /expert 等）纯本地，不计额度
     if (text or '').strip().startswith(('##', '/')):
         return True
     # 排障用：穿透后必须确认拿到的是不是**真实访客 IP**。若穿透服务不传
@@ -1056,6 +1046,7 @@ async def _gate_guard(text: str) -> bool:
     # 开 `GATE_DEBUG=1`，用手机流量（关 WiFi）访问一次，看控制台打印值。
     if os.getenv('GATE_DEBUG'):
         print('[gate] ip=', _current_ip())
+    # 第 1、2 道：每 IP 限流 + 全局日预算
     ok, reason = gate_ledger().hit(_current_ip(), cfg)
     if not ok:
         await cl.Message(content=reason).send()
@@ -1065,7 +1056,7 @@ async def _gate_guard(text: str) -> bool:
 
 @cl.on_chat_start
 async def on_chat_start():
-    # 公网闸门：口令不过就直接结束（欢迎语都不发，避免"能看不能用"的困惑）
+    # 公网闸门：演示模式未开就直接结束（欢迎语都不发，避免"能看不能用"的困惑）
     if not await _ensure_access():
         return
     # 恢复上次选择的模型（会话级 + 持久化），供本次会话的 LLM 调用
@@ -1710,7 +1701,7 @@ async def on_message(message: cl.Message):
     却明确允许 application/pdf）。分流后每一条路径都有明确回执，不再有"发了像没发"。
     """
     caption = (message.content or '').strip()
-    # 公网闸门：口令未过 / 限流超限 → 已回话，直接返回（**0 次付费 API**）
+    # 公网闸门：演示模式未开 / 限流超限 → 已回话，直接返回（**0 次付费 API**）
     if not await _gate_guard(caption):
         return
     try:
