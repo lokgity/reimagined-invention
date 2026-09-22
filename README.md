@@ -72,13 +72,13 @@ python -m chainlit run src/ui/app_chainlit.py --port 8502 --host 0.0.0.0
 ### Render 公网部署
 
 仓库根目录的 `render.yaml` 已配置 Python 3.12、动态 `$PORT`、健康检查，以及
-`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`。在 Render
+`PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium`。在 Render
 选择 Blueprint 部署即可自动执行；该设置把浏览器放在 Playwright 包内，避免
 `/opt/render/.cache` 在构建与运行阶段不一致。
 如果使用已有 Web Service 而不是 Blueprint，请将 Build Command 设置为：
 
 ```bash
-PLAYWRIGHT_BROWSERS_PATH=0 pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium
+PLAYWRIGHT_BROWSERS_PATH=0 pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium
 ```
 
 Start Command 设置为：

@@ -3,7 +3,7 @@ services:
     name: site-selection-agent
     runtime: python
     plan: free
-    buildCommand: PLAYWRIGHT_BROWSERS_PATH=0 pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium
+    buildCommand: PLAYWRIGHT_BROWSERS_PATH=0 pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium
     startCommand: python -m chainlit run src/ui/app_chainlit.py --host 0.0.0.0 --port $PORT
     healthCheckPath: /
     envVars:
