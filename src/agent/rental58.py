@@ -679,7 +679,13 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
             if any('HTTP 403' in e or 'HTTP 429' in e or '验证/反爬' in e
                    for e in errors):
                 meta['reason'] = '页面返回反爬/限流或验证提示'
-            elif any('Timeout' in e or '超时' in e for e in errors):
+            # ⚠️ `'总时限'` 这一项是 2026-09-23 补的，不是可有可无：
+            # `_fetch_async` 超时时写的是「抓取总时限已到（页面可能响应慢或被限流）」——
+            # **既不含 "Timeout" 也不含 "超时"**（用的是"总时限"），于是超时被这条判据漏掉，
+            # 落到最后的 else 显示成"页面未取到卡片（网络或页面结构变化）"，
+            # **把"超时"误报成"页面结构变了"**，排查时被带偏（线上那次就吃了这个亏）。
+            elif any('Timeout' in e or '超时' in e or '总时限' in e
+                     for e in errors):
                 meta['reason'] = '页面请求超时（网络或站点响应慢）'
             else:
                 meta['reason'] = '页面未取到卡片（网络或页面结构变化）'

@@ -2192,7 +2192,15 @@ CAND_TOTAL = 15            # 最终展示的候选数（用户确认：抓 60 / 
 #    （用户诉求②：兜底 POI 不是房源），所以池子必须自己开够。
 CAND_POOL = 40
 RENTAL58_LIMIT = 60        # 58 抓取条数上限（用户确认：抓 60）
-RENTAL58_PAGES = 3         # 58 PC 列表翻页数
+RENTAL58_PAGES = 1         # 58 PC 列表翻页数
+# ⚠️ 2026-09-23：3 → 1。PC 站（*.58.com）已被验证码全面接管（实测 jx/jiaxing/haining/hz
+# 四个域名全返回同一个验证码页），多翻页只是把并发从 2 路抬到 4 路；在窄带宽的机器上
+# 4 路并发会把**整轮**拖过总时限 —— 实测 pages=3 时 4 路全部"抓取总时限已到"→ 0 条，
+# 而 pages=1 时移动端正常给出 5 条真实铺源。候选量由移动端承担，PC 只留 1 页
+# 做"万一站点策略回摆"的探测。
+RENTAL58_BUDGET = 25.0     # 抓取总时限（秒）
+# ⚠️ 2026-09-23：12 → 25。12s 是当年"4 路并发"的预算；现在 2 路，但单个页面实测要 5~8s，
+# 窄带宽下更慢，留足余量（宁可多等几秒，也不要整轮判失败）。
 RENTAL58_MOBILE = True     # 并入移动端（另一套条目集合）
 # 详情页补全：只对"缺面积/缺定位线索"的条目再开一次详情页取参数区。
 # 这是需求④"有些店铺只有区域定位而且没有面积和租金"的直接落地；
@@ -2397,7 +2405,7 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
                 shops = await asyncio.wait_for(
                     asyncio.to_thread(fetch_shops, city, RENTAL58_LIMIT, 25,
                                       area_filter or None, RENTAL58_PAGES,
-                                      RENTAL58_MOBILE, 12.0, fetch_meta,
+                                      RENTAL58_MOBILE, RENTAL58_BUDGET, fetch_meta,
                                       detail=RENTAL58_DETAIL,
                                       detail_max=RENTAL58_DETAIL_MAX,
                                       detail_budget_s=RENTAL58_DETAIL_BUDGET),
