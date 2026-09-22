@@ -392,8 +392,8 @@ def s7():
           '列表卡片的 JS 里真的抽了 href（详情页入口）')
     check("_detail_url_of(row.get('href'))" in R58,
           'href 经 _detail_url_of 过滤后才存成 detail_url')
-    check('channel=' in _fn_body(R58, '_fetch_details_async'),
-          '详情页并发沿用 channel=chrome（本机默认 launch 会找不到 chromium）')
+    check('def _launch_browser' in R58 and 'executable_path' in R58,
+          '详情页并发显式使用 Playwright 包内 Chromium（避免 Render 缓存路径漂移）')
 
     check(_detail_url_of('https://hz.58.com/shangpu/8263924x.shtml') is not None,
           '详情 url 认出')

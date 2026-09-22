@@ -468,22 +468,41 @@ async def _cards_on_page(page):
 
 async def _load_one(browser, url, timeout):
     """并发单元：独立 context 打开一个列表页，返回 (url, cards, err)。"""
-    ctx = None
-    try:
-        ctx = await browser.new_context(viewport={'width': 1400, 'height': 900})
-        page = await ctx.new_page()
-        await page.goto(url, wait_until='domcontentloaded', timeout=timeout * 1000)
-        await page.wait_for_timeout(1200)     # 列表懒渲染，等一档即可
-        cards = await _cards_on_page(page)
-        return url, cards, None
-    except Exception as e:
-        return url, [], f'{type(e).__name__}: {str(e)[:60]}'
-    finally:
-        if ctx is not None:
-            try:
-                await ctx.close()
-            except Exception:
-                pass
+    last_error = None
+    for attempt in range(2):
+        ctx = None
+        try:
+            ctx = await browser.new_context(
+                viewport={'width': 1400, 'height': 900},
+                user_agent=(
+                    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+                    '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'))
+            page = await ctx.new_page()
+            response = await page.goto(
+                url, wait_until='domcontentloaded', timeout=timeout * 1000)
+            status = response.status if response is not None else None
+            if status in (403, 429):
+                return url, [], f'HTTP {status}（站点拒绝或限流）'
+            await page.wait_for_timeout(1200)     # 列表懒渲染，等一档即可
+            cards = await _cards_on_page(page)
+            if cards:
+                return url, cards, None
+            body = (await page.locator('body').inner_text())[:1200].lower()
+            markers = ('验证码', '访问频繁', '安全验证', 'robot', 'captcha')
+            if any(marker.lower() in body for marker in markers):
+                return url, [], '页面返回验证/反爬提示'
+            return url, [], f'HTTP {status or "未知"}（页面无可解析卡片）'
+        except Exception as e:
+            last_error = f'{type(e).__name__}: {str(e)[:100]}'
+            if attempt == 0:
+                await asyncio.sleep(1.5)
+        finally:
+            if ctx is not None:
+                try:
+                    await ctx.close()
+                except Exception:
+                    pass
+    return url, [], f'重试 1 次后仍失败：{last_error}'
 
 
 async def _fetch_async(urls, timeout, limit):
@@ -645,7 +664,14 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
         if not items and got_any:
             meta['reason'] = '抓取成功但无匹配条目（区域关键词可能过窄）'
         elif not got_any:
-            meta['reason'] = '全部页面未取到卡片（反爬/网络）'
+            errors = meta.get('page_errors') or []
+            if any('HTTP 403' in e or 'HTTP 429' in e or '验证/反爬' in e
+                   for e in errors):
+                meta['reason'] = '页面返回反爬/限流或验证提示'
+            elif any('Timeout' in e or '超时' in e for e in errors):
+                meta['reason'] = '页面请求超时（网络或站点响应慢）'
+            else:
+                meta['reason'] = '页面未取到卡片（网络或页面结构变化）'
     return items
 
 
