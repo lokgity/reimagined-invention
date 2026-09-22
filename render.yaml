@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: site-selection-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && playwright install --with-deps chromium
+    startCommand: python -m chainlit run src/ui/app_chainlit.py --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: DEMO_MODE
+        value: "1"
+      - key: GATE_SKIP_LOCAL
+        value: "1"
+      - key: RATE_PER_MIN
+        value: "12"
+      - key: RATE_PER_DAY
+        value: "200"
+      - key: DAILY_BUDGET
+        value: "400"

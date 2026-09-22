@@ -2,6 +2,11 @@
 .env
 .env.local
 *.env
+douyin_cookies.json
+**/douyin_cookies.json
+*cookies*.json
+*credentials*.json
+*secrets*.json
 
 # ========== Python 缓存 / 虚拟环境 ==========
 __pycache__/

@@ -42,7 +42,7 @@ body{
   background:linear-gradient(170deg,var(--paper-2) 0%,var(--paper) 55%,#f7efd9 100%);
   overflow:hidden;
   box-shadow:0 3mm 10mm rgba(0,0,0,.34);
-  padding:15mm 15mm 13mm;
+  padding:12mm 12mm 11mm;
   display:flex;flex-direction:column;
 }
 @media print{
@@ -56,7 +56,7 @@ body{
     border-bottom:.5pt solid var(--line);padding-bottom:2.4mm;margin-bottom:5mm;flex:0 0 auto}
 .hd .hd-l{display:flex;align-items:center;gap:2.2mm;color:var(--ink);font-weight:600}
 .hd .dot{width:2.6mm;height:2.6mm;border-radius:50%;background:var(--gold);display:inline-block}
-.ft{position:absolute;left:15mm;right:15mm;bottom:6.5mm;
+.ft{position:absolute;left:12mm;right:12mm;bottom:5.5mm;
     display:flex;justify-content:space-between;align-items:center;
     font-size:7.4pt;color:var(--muted);border-top:.5pt solid var(--line);padding-top:2mm}
 .ft .pn{font-weight:700;color:var(--ink);font-size:8.6pt;letter-spacing:.06em}
@@ -66,25 +66,25 @@ body{
 </style>
 <style id="fitvars">
 .page:nth-of-type(1){--bd-stretch:1.000;--bd-pad:1.000}
-.page:nth-of-type(2){--bd-stretch:0.880;--bd-pad:0.830}
-.page:nth-of-type(3){--bd-stretch:1.563;--bd-pad:0.895}
-.page:nth-of-type(4){--bd-stretch:1.638;--bd-pad:1.063}
-.page:nth-of-type(5){--bd-stretch:0.887;--bd-pad:0.805}
-.page:nth-of-type(6){--bd-stretch:1.614;--bd-pad:1.528}
-.page:nth-of-type(7){--bd-stretch:0.881;--bd-pad:0.999}
-.page:nth-of-type(8){--bd-stretch:1.350;--bd-pad:1.350}
-.page:nth-of-type(9){--bd-stretch:0.882;--bd-pad:0.817}
-.page:nth-of-type(10){--bd-stretch:0.931;--bd-pad:1.240}
-.page:nth-of-type(11){--bd-stretch:2.002;--bd-pad:1.722}
-.page:nth-of-type(12){--bd-stretch:0.939;--bd-pad:1.233}
-.page:nth-of-type(13){--bd-stretch:2.399;--bd-pad:1.722}
-.page:nth-of-type(14){--bd-stretch:2.093;--bd-pad:1.667}
-.page:nth-of-type(15){--bd-stretch:1.409;--bd-pad:1.384}
-.page:nth-of-type(16){--bd-stretch:1.884;--bd-pad:1.571}
-.page:nth-of-type(17){--bd-stretch:2.146;--bd-pad:1.683}
-.page:nth-of-type(18){--bd-stretch:0.880;--bd-pad:0.822}
-.page:nth-of-type(19){--bd-stretch:0.881;--bd-pad:1.005}
-.page:nth-of-type(20){--bd-stretch:2.135;--bd-pad:1.529}
+.page:nth-of-type(2){--bd-stretch:2.400;--bd-pad:2.350}
+.page:nth-of-type(3){--bd-stretch:0.881;--bd-pad:1.101}
+.page:nth-of-type(4){--bd-stretch:2.354;--bd-pad:1.175}
+.page:nth-of-type(5){--bd-stretch:2.001;--bd-pad:1.421}
+.page:nth-of-type(6){--bd-stretch:0.909;--bd-pad:1.029}
+.page:nth-of-type(7){--bd-stretch:2.399;--bd-pad:1.611}
+.page:nth-of-type(8){--bd-stretch:1.170;--bd-pad:1.259}
+.page:nth-of-type(9){--bd-stretch:1.645;--bd-pad:1.504}
+.page:nth-of-type(10){--bd-stretch:1.032;--bd-pad:1.035}
+.page:nth-of-type(11){--bd-stretch:1.401;--bd-pad:1.377}
+.page:nth-of-type(12){--bd-stretch:2.038;--bd-pad:1.860}
+.page:nth-of-type(13){--bd-stretch:2.400;--bd-pad:2.350}
+.page:nth-of-type(14){--bd-stretch:2.400;--bd-pad:2.049}
+.page:nth-of-type(15){--bd-stretch:2.396;--bd-pad:1.943}
+.page:nth-of-type(16){--bd-stretch:1.882;--bd-pad:1.656}
+.page:nth-of-type(17){--bd-stretch:2.400;--bd-pad:2.025}
+.page:nth-of-type(18){--bd-stretch:1.054;--bd-pad:1.244}
+.page:nth-of-type(19){--bd-stretch:0.880;--bd-pad:0.800}
+.page:nth-of-type(20){--bd-stretch:2.399;--bd-pad:1.730}
 </style>
 <style>
 /* ---------- 标题层级 ---------- */
@@ -96,9 +96,9 @@ h2 .no{font-size:10pt;font-weight:800;color:var(--gold);
        border:1pt solid var(--line-gold);border-radius:1mm;padding:.2mm 1.6mm}
 h3{font-size:10.6pt;font-weight:700;color:var(--ink);margin-bottom:.8mm}
 .lead{font-size:11.4pt;line-height:1.6;color:var(--ink-2);font-weight:500}
-p{margin-bottom:1.6mm}
-.small{font-size:8.6pt;line-height:1.5;color:var(--muted)}
-.tiny{font-size:7.6pt;line-height:1.44;color:var(--muted)}
+p{margin-bottom:1.25mm}
+.small{font-size:8.6pt;line-height:1.42;color:var(--muted)}
+.tiny{font-size:7.6pt;line-height:1.35;color:var(--muted)}
 b,strong{font-weight:700;color:var(--ink)}
 .gold{color:var(--gold)}
 .red{color:var(--red)}
@@ -140,7 +140,7 @@ b,strong{font-weight:700;color:var(--ink)}
 .kpi.g{border-left-color:var(--green)} .kpi.g .val{color:var(--green)}
 .kpi.a{border-left-color:var(--amber)} .kpi.a .val{color:var(--amber)}
 /* ---------- 表格 ---------- */
-table{width:100%;border-collapse:collapse;font-size:9.1pt;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:9.1pt;line-height:1.41}
 th{background:rgba(14,53,58,.075);color:var(--ink);font-weight:700;text-align:left;
    padding:calc(1.5mm * var(--bd-pad,1)) 2mm;border-bottom:.8pt solid var(--line-gold);white-space:nowrap}
 td{padding:calc(1.4mm * var(--bd-pad,1)) 2mm;border-bottom:.4pt solid var(--line);vertical-align:top}
@@ -161,7 +161,7 @@ tbody tr.good{background:var(--green-bg)}
 .tag.line{background:none;border:.6pt solid var(--line-gold);color:var(--gold)}
 /* ---------- 列表 ---------- */
 ul,ol{margin:0 0 1.4mm 4mm}
-li{margin-bottom:.9mm;line-height:1.52}
+li{margin-bottom:.72mm;line-height:1.43}
 li::marker{color:var(--gold);font-weight:700}
 ul.tight li{margin-bottom:.5mm}
 ol.steps{counter-reset:s;list-style:none;margin-left:0}
@@ -264,16 +264,24 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
   border-radius:1.6mm;padding:1.6mm 3mm}
 .u3j-l{font-size:8.8pt;color:var(--muted)}
 .u3j-q{font-size:9.4pt;font-weight:800;color:var(--ink)}
-/* ---------- 实拍照片位（留位用，照片按同画幅放进来即可，版心高度不变） ---------- */
-.photobox{position:relative;border:1pt dashed var(--line-gold);border-radius:1.6mm;
-  background:rgba(255,255,255,.5);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:1mm;padding:2mm;text-align:center;
-  aspect-ratio:3.4/1;overflow:hidden}
-.photobox .ph-ic{width:7mm;height:7mm;border-radius:50%;border:1pt solid var(--line-gold);
-  display:flex;align-items:center;justify-content:center;color:var(--gold);
-  font-size:8pt;font-weight:800}
-.photobox .ph-t{font-size:9pt;font-weight:800;color:var(--ink)}
-.photobox .ph-c{font-size:7.4pt;color:var(--muted);line-height:1.4}
+/* ---------- 目录页（2026-09-22 策要求：照标准商业计划书的目录样式） ---------- */
+.toc{margin-top:1.5mm}
+.toc-ch{display:flex;align-items:baseline;margin-top:3.2mm;padding-bottom:.9mm;
+  border-bottom:1pt solid var(--line-gold)}
+.toc-ch span{font-size:11.6pt;font-weight:800;color:var(--ink)}
+.toc-ch b{margin-left:auto;font-size:11pt;font-weight:800;color:var(--gold);
+  font-variant-numeric:tabular-nums}
+.toc-it{display:flex;align-items:baseline;margin-top:1.5mm;padding-left:6mm}
+.toc-it span{font-size:9.6pt;color:var(--muted)}
+.toc-it b{margin-left:auto;font-size:9.6pt;font-weight:700;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.toc-it span i,.toc-ch span i{font-style:normal}
+.toc-lead{margin-top:1mm;font-size:8.6pt;color:var(--muted)}
+/* ---------- 实拍照片（P02：云创招牌更替的实拍证据） ---------- */
+.photo{margin:0}
+.photo img{display:block;width:100%;height:auto;aspect-ratio:3.3/1;object-fit:cover;
+  object-position:center 45%;border-radius:1.5mm;border:.6pt solid var(--line-gold)}
+.photo figcaption{margin-top:.9mm;font-size:7.3pt;color:var(--muted);line-height:1.4}
 /* ---------- 仿真大屏（图文并排，等量替换原来的三栏文字） ---------- */
 .sbwrap{display:grid;grid-template-columns:1.3fr 1fr;gap:3mm;align-items:center;margin-top:1mm}
 .sbimg img{width:100%;height:auto;display:block;border-radius:1mm;border:.6pt solid var(--line)}
@@ -342,9 +350,8 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
 
     <div class="mid"><div class="box">
       <div class="claim">
-        同一间铺面，招牌换过<em>四轮</em>。<br>
-        每一轮，都是从「<em>这位置不错</em>」开始的。<br>
-        址南针想把这一笔账，算在<em>签字之前</em>。
+        你能选加盟的品牌，能选开店的地址，<br>
+        不能选的<em>净利润</em>，址南针替你算出来。
       </div>
       <div class="tagline">位置决定流量的上限，<em>净利润</em>决定能不能活到兑现那天。</div>
 
@@ -358,13 +365,50 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>目录</div></div>
   <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">02</div></div>
 
   <div class="bd">
     <div>
+      <div class="sech"><span class="kicker">CONTENTS</span></div>
+      <h2>目录</h2>
+      <div class="toc-lead">全书 20 页，六个部分：从问题、方法、实现、边界，到交付与总结。</div>
+      <div class="toc">
+        <div class="toc-ch"><span>一 · 项目背景</span><b>03</b></div>
+        <div class="toc-it"><span>项目背景 · 同一间铺面，换过四轮招牌</span><b>03</b></div>
+        <div class="toc-it"><span>目标用户 · 三类人卡在同一个决定上</span><b>04</b></div>
+        <div class="toc-it"><span>需求分析 · 从起念到签字的五个阶段</span><b>05</b></div>
+        <div class="toc-it"><span>功能清单 · 要拍板，先得有这十一项</span><b>06</b></div>
+        <div class="toc-it"><span>竞品分析 · 现有工具给不出什么</span><b>07</b></div>
+        <div class="toc-ch"><span>二 · 核心方法</span><b>08</b></div>
+        <div class="toc-it"><span>核心方法 · 从成本结构反解租金上限</span><b>08</b></div>
+        <div class="toc-it"><span>决策规则 · 位置分再高，账算不过来就不能签</span><b>09</b></div>
+        <div class="toc-ch"><span>三 · 技术实现</span><b>10</b></div>
+        <div class="toc-it"><span>算法可信度 · 这套算法凭什么站得住</span><b>10</b></div>
+        <div class="toc-it"><span>评分模型 · 引力模型与品类画像</span><b>11</b></div>
+        <div class="toc-it"><span>系统架构 · 十四个节点，九位专家</span><b>12</b></div>
+        <div class="toc-it"><span>数据治理 · 数据先取干净，结论才敢给</span><b>13</b></div>
+        <div class="toc-it"><span>AI 能力 · 四个模块各管哪一环</span><b>14</b></div>
+        <div class="toc-it"><span>质量保障 · 怎么证明它没坏</span><b>15</b></div>
+        <div class="toc-ch"><span>四 · 适用边界</span><b>17</b></div>
+        <div class="toc-it"><span>适用边界 · 我们知道自己没测什么</span><b>17</b></div>
+        <div class="toc-ch"><span>五 · 产品交付</span><b>18</b></div>
+        <div class="toc-it"><span>扩展场景 · 已经开了店，同样算得清</span><b>18</b></div>
+        <div class="toc-it"><span>使用方式 · 一句话进，一份判断出</span><b>19</b></div>
+        <div class="toc-it"><span>价值与规划 · 接下来往哪走</span><b>19</b></div>
+        <div class="toc-ch"><span>六 · 总结</span><b>20</b></div>
+        <div class="toc-it"><span>总结 · 一页看完这份作品</span><b>20</b></div>
+      </div>
+    </div>
+  </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>一 · 项目背景</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">03</div></div>
+
+  <div class="bd">
+    <div>
       <div class="sech"><span class="kicker">BACKGROUND</span></div>
-      <h2><span class="no">01</span>同一间铺面，为什么换过四轮招牌</h2>
+      <h2><span class="no">01</span>项目背景 · 同一间铺面，换过四轮招牌</h2>
     </div>
 
     <div class="card g" style="padding:3.8mm 4mm">
@@ -391,19 +435,17 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
         </div>
       </div>
 
-      <!-- 实拍照片位 ×2（策 2026-09-21：放云创新旧店铺更替的实拍）。
-           用 aspect-ratio 锁住画幅，照片按同机位并排放进来即可，不会改变版心高度。 -->
-      <div class="grid g2" style="gap:3mm;margin-top:2.8mm">
-        <div class="photobox">
-          <div class="ph-ic">照</div>
-          <div class="ph-t">实拍 · 云创商业街</div>
-          <div class="ph-c">同一间铺面 · <b>上一轮招牌</b></div>
-        </div>
-        <div class="photobox">
-          <div class="ph-ic">照</div>
-          <div class="ph-t">实拍 · 云创商业街</div>
-          <div class="ph-c">同一间铺面 · <b>这一轮换成了什么</b>（建议同机位）</div>
-        </div>
+      <!-- 实拍照片 ×2（2026-09-22 策提供）：铺子空出来挂招商热线 → 过一阵新「首店」
+           又挂上 COMING SOON —— 一张图讲完"招牌换过四轮"。 -->
+      <div class="grid g2" style="gap:3mm;margin-top:2.4mm">
+        <figure class="photo">
+          <img src="img/18_yc_vacant.jpg" alt="云创商业街招租围挡：COMING SOON 与招商热线">
+          <figcaption>铺子空出来时，挂的是<b>招商热线</b></figcaption>
+        </figure>
+        <figure class="photo">
+          <img src="img/19_yc_new.jpg" alt="同一街区新品牌「宁波·首店」的 COMING SOON 围挡">
+          <figcaption>过一阵再看，<b>新的「首店」</b>又挂上了 COMING SOON</figcaption>
+        </figure>
       </div>
     </div>
 
@@ -431,28 +473,26 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
         <div>
           <div style="font-size:15pt;font-weight:800;color:#fda4a4;line-height:1.15">27% → 34%</div>
           <div class="tiny" style="color:#d5e2e1;margin-top:1.2mm">
-            10 家店以下的单体门店，新开 3 个月内闭店率一年内从 27% 升到 34%，
-            <b style="color:#f7f3e4">半年内约 50% 关门</b>
+            10 家店以下的单体门店，3 个月闭店率一年内 27% → 34%，
+            <b style="color:#f7f3e4">半年约 50% 关门</b>
           </div>
         </div>
         <div>
           <div style="font-size:15pt;font-weight:800;color:#f0d9a6;line-height:1.15">≈ 1/4 → 40%</div>
           <div class="tiny" style="color:#d5e2e1;margin-top:1.2mm">
-            10 家店以上的连锁门店，3 个月关掉约四分之一，半年接近 40%
-            —— 有品牌背书的一组，同样过得艰难
+            10 家店以上的连锁门店，3 个月关掉约 1/4、半年接近 40% —— 有品牌背书的同样艰难
           </div>
         </div>
         <div>
           <div style="font-size:15pt;font-weight:800;color:#fda4a4;line-height:1.15">15<span style="font-size:9pt">个月</span></div>
           <div class="tiny" style="color:#d5e2e1;margin-top:1.2mm">
-            门店平均存活周期，较 2019 年近乎减半 —— 从挂上招牌到关店，平均约 400 天
+            门店平均存活 15 个月，较 2019 年近乎减半 —— 挂上招牌到关店约 400 天
           </div>
         </div>
       </div>
       <div class="divider" style="background:rgba(229,201,138,.25);margin:2.4mm 0 1.6mm"></div>
       <div class="tiny" style="color:#9db3b6">
-        来源：美团到店餐饮事业部在 2025 年 10 月美团餐饮大会上公布的数据；
-        门店存活周期引自《2026 中国餐饮市场蓝皮书》（商务部、复旦大学消费大数据实验室等联合发布，2026 年 4 月）。
+        来源：美团到店餐饮事业部（2025.10 美团餐饮大会）；门店存活周期引自《2026 中国餐饮市场蓝皮书》（商务部、复旦大学消费大数据实验室等，2026.04）。
       </div>
     </div>
 
@@ -475,7 +515,7 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
             </div>
           </div>
           <div class="tiny" style="color:var(--muted);margin-top:1.6mm">
-            数据来源：浙江省市场监督管理局《2025 年度个体经济形势分析报告》，2026 年 1 月发布。
+            数据来源：浙江省市场监督管理局《2025 年度个体经济形势分析报告》，2026.01。
           </div>
         </div>
         <div style="border-left:.8pt solid var(--line-gold);padding-left:5mm">
@@ -508,13 +548,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">03</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>一 · 项目背景</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">04</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">TARGET USERS</span></div>
-      <h2><span class="no">02</span>为它掏钱的是谁，卡在哪一步</h2>
+      <h2><span class="no">02</span>目标用户 · 三类人卡在同一个决定上</h2>
       <p class="lead" style="margin-top:1.6mm">
         他们是这个产品的全部服务对象。三类人的资源、经验和手里的数据各不相同，
         但都卡在同一个动作上：面对一个具体的铺位和一份具体的租金，判断不出该不该签。
@@ -665,13 +705,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">04</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>一 · 项目背景</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">05</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">REQUIREMENT ANALYSIS</span></div>
-      <h2><span class="no">03</span>从起念到签字，钱漏在哪一步</h2>
+      <h2><span class="no">03</span>需求分析 · 从起念到签字的五个阶段</h2>
       <p class="lead" style="margin-top:1.6mm">
         我们把一次开店拆成五个阶段，逐段找出用户此刻拿不到、但必须拿到的信息。
         拆解依据来自三个渠道：对本地商业街的长期观察、各地法院公布的加盟纠纷案例、
@@ -782,13 +822,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">05</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>一 · 项目背景</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">06</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">FUNCTIONAL DESIGN</span></div>
-      <h2><span class="no">04</span>要拍板，先得有这十一项</h2>
+      <h2><span class="no">04</span>功能清单 · 要拍板，先得有这十一项</h2>
       <p class="lead" style="margin-top:1.6mm">
         功能清单按"用户要的结论"组织，十一条功能各自对应明确的输入、输出与覆盖阶段，
         每一条都能追到代码落点，不存在只在文档里存在的功能。
@@ -888,13 +928,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>壹 · 问题</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">06</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>一 · 项目背景</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">07</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">COMPETITIVE LANDSCAPE</span></div>
-      <h2><span class="no">05</span>同样的铺位，别处给得出什么</h2>
+      <h2><span class="no">05</span>竞品分析 · 现有工具给不出什么</h2>
       <p class="lead" style="margin-top:1.6mm">
         创业者做一次选址决策，手上能用的选项并不多。这一页把它们逐项摊开，
         看每一类分别能回答什么、留下什么需要自己补。
@@ -1012,14 +1052,14 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>贰 · 判断</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">07</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>二 · 核心方法</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">08</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">CORE INNOVATION 1</span>
         <span class="pill">竞价租金 BID-RENT</span></div>
-      <h2><span class="no">06</span>一间店赚不赚钱，从成本结构倒着算</h2>
+      <h2><span class="no">06</span>核心方法 · 从成本结构反解租金上限</h2>
     </div>
 
     <div class="grid g2" style="gap:4mm">
@@ -1151,14 +1191,14 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>贰 · 判断</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">08</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>二 · 核心方法</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">09</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">CORE INNOVATION 2</span>
         <span class="pill">满意化 SATISFICING</span></div>
-      <h2><span class="no">07</span>位置分再高，账算不过来就不能签</h2>
+      <h2><span class="no">07</span>决策规则 · 位置分再高，账算不过来就不能签</h2>
     </div>
 
     <div class="card warn" style="padding:3.4mm 4mm">
@@ -1272,13 +1312,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">09</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">10</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">ENGINEERING RIGOR</span></div>
-      <h2><span class="no">08</span>这套算法凭什么站得住</h2>
+      <h2><span class="no">08</span>算法可信度 · 这套算法凭什么站得住</h2>
       <p class="lead" style="margin-top:1.6mm">
         这一页先交代<b>使用的开发工具与技术栈</b>，再讲三条别人通常不做的功课：<b>知道模型什么时候是错的</b>。
       </p>
@@ -1404,14 +1444,14 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">10</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">11</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">THEORY</span>
         <span class="pill">Huff 1963 · 中心地理论</span></div>
-      <h2><span class="no">09</span>分数的来源，是引力模型与品类画像</h2>
+      <h2><span class="no">09</span>评分模型 · 引力模型与品类画像</h2>
     </div>
 
     <div class="grid g2" style="gap:3.6mm">
@@ -1521,14 +1561,14 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">11</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">12</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">ARCHITECTURE &amp; EXPERTS</span>
         <span class="pill">14 节点 · 9 位专家</span></div>
-      <h2><span class="no">10</span>十四个节点，九位专家</h2>
+      <h2><span class="no">10</span>系统架构 · 十四个节点，九位专家</h2>
       <p class="lead" style="margin-top:1.2mm">
         引擎只算一次，专家各自解读。<b>三个互斥起点</b>决定先算哪条线，<b>九位专家</b>决定用哪个视角把结论讲出来。
       </p>
@@ -1636,16 +1676,19 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
         驱动九位专家各切视角解读；一句话里含多个诉求时会被拆成子意图分别路由，各自给出明确结论。
       </p>
     </div>
-  </div>
-</section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">12</div></div>
+  
 
-  <div class="bd">
+
     <div>
       <div class="sech"><span class="kicker">DATA DETERMINISM</span>
         <span class="pill">两个会改变结论的数据缺陷</span></div>
-      <h2><span class="no">11</span>数据先取干净，结论才敢给</h2>
+        </div>
+</section><section class="page">
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">13</div></div>
+
+  <div class="bd">
+<h3>数据治理 · 数据先取干净，结论才敢给</h3>
       <p class="lead" style="margin-top:1.2mm">
         一级数据来自本地预抓取库，实时接口只作兜底。兜底路径曾出过一个<b class="red">会陈述错误事实</b>的问题。
       </p>
@@ -1777,15 +1820,17 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
       </div>
     </div>
 
+  
+  
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">13</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">14</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">MULTIMODAL & RAG</span></div>
-      <h2><span class="no">12</span>四个 AI 能力各管哪一环</h2>
+      <h2><span class="no">12</span>AI 能力 · 四个模块各管哪一环</h2>
       <p class="lead" style="margin-top:1.4mm">
         AI 在这个作品里承担的是<b>从进门到最后拍板的全过程</b>：把一句人话解析成五项参数、
         判定走哪条分支、拆开一句话里的多个诉求、读懂门头照片、检索政策原文、组织谈判话术，
@@ -1887,14 +1932,14 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">14</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">15</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">VERIFICATION</span>
         <span class="pill">17 套件 · 52+ 实机断言</span></div>
-      <h2><span class="no">13</span>这套东西怎么证明它没坏</h2>
+      <h2><span class="no">13</span>质量保障 · 怎么证明它没坏</h2>
       <p class="lead" style="margin-top:1.2mm">验证体系的价值，不在"全绿"，而在<b>它真的抓到过东西</b>。</p>
     </div>
 
@@ -1965,13 +2010,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>叁 · 实现</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">15</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>三 · 技术实现</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">16</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">BRAND CALIBRATION</span></div>
-      <h2><span class="no">13</span>这套东西怎么证明它没坏</h2>
+      <h2><span class="no">13</span>质量保障 · 怎么证明它没坏</h2>
     </div>
 
     <div class="card warn">
@@ -2059,14 +2104,14 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>肆 · 边界</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">16</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>四 · 适用边界</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">17</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">LIMITATIONS</span>
         <span class="pill">主动披露 · 共 32 条</span></div>
-      <h2><span class="no">14</span>我们知道自己没测什么</h2>
+      <h2><span class="no">14</span>适用边界 · 我们知道自己没测什么</h2>
       <p class="lead" style="margin-top:1.2mm">
         一个把局限写清楚的产品，比一个"看起来什么都行"的产品<b>更可信</b>。
       </p>
@@ -2173,13 +2218,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
     </div>
   </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>伍 · 交付</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">17</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>五 · 产品交付</div></div>
+  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">18</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">POST-OPENING</span></div>
-      <h2><span class="no">15</span>已经开了店，同样算得清</h2>
+      <h2><span class="no">15</span>扩展场景 · 已经开了店，同样算得清</h2>
     </div>
 
     <div class="card g">
@@ -2261,16 +2306,13 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
         最后一条是重点：系统先指出经营面的相对位置，把「多做营销」这类通用建议排在后面。<b>这是有依据的诊断与营销玄学的分界。</b>
       </p>
     </div>
-  </div>
-</section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>伍 · 交付</div></div>
-  <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">18</div></div>
+  
 
-  <div class="bd">
+
     <div>
       <div class="sech"><span class="kicker">UX &amp; LIVE DEMO</span>
         <span class="pill">操作流程 · 交互指南 · 四张实机截图</span></div>
-      <h2><span class="no">16</span>一句话进，一份判断出</h2>
+      <h3>使用方式 · 一句话进，一份判断出</h3>
       <p class="lead" style="margin-top:1.2mm">
         目标用户是不懂数据的中小创业者，界面第一件事就是<b>不让他们面对表单</b>；下面五步即完整操作流程。
       </p>
@@ -2278,74 +2320,15 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
 
     <div class="card g" style="padding:1.9mm 3mm">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <h3>使用说明 · 操作流程五步</h3><span class="tag gold">不出现表单</span>
-      </div>
-      <table style="font-size:7.2pt;margin-top:1mm">
-        <tbody>
-          <tr><td style="width:24%"><b>① 一句话发起</b></td>
-              <td>写一句人话（例：「杭州武林广场 · 奶茶 · 30㎡ · 月租 8000 · 预算 20 万」）⇒ 解析出<b>品类／地点／面积／租金／预算</b>五项参数；缺的那项弹一张卡补齐，<b>不出现表单</b></td></tr>
-          <tr><td><b>② 挑候选铺位</b></td>
-              <td>铺位未定时自动抓取真实在租店铺并卡片化（含<b>房源性</b>与<b>定位精度</b>标签），<b>点卡片即启动完整分析</b>，不需要打字</td></tr>
-          <tr class="hl"><td><b>③ 看结论</b></td>
-              <td>右侧工作台给出评分卡／雷达图／热力图，左侧「<b>仿真大屏</b>」入口选一次分析即演人流走向（小人沿马路走进本铺与竞品店铺），以及<b>两个金额</b>与报价的差额</td></tr>
-          <tr><td><b>④ 换视角追问</b></td>
-              <td>输入框上方常驻<b>九位专家</b>，可直接问租金、问竞争、问加盟费；含多个诉求的句子会被拆开分别回答</td></tr>
-          <tr><td><b>⑤ 带走结论</b></td>
-              <td>一键导出 PDF；勾选 <b>2–4 个</b>历史分析生成多方案对比看板</td></tr>
-        </tbody>
-      </table>
-      <p class="tiny" style="margin:1mm 0 0">
-        <b>交互指南：</b>不用先看懂指标就能开始；数据取不到会明说缺哪一类；结论不稳会打稳健性四档警告；切专家不产生多余气泡。
-      </p>
-    </div>
-
-    <div class="grid g2" style="gap:1.8mm">
-      <div class="shot has-img">
-        <div class="no">01</div>
-        <img src="img/17_sim_board.png" alt="仿真大屏 · 人流来源与竞品分流">
-        <div class="cap">仿真大屏 · 人流来源沿马路走向本铺与竞品</div>
-        <div class="why">小人数量＝客流权重，去向按 Huff 引力分流、<b>持续循环走动</b>；顶栏带<b>来源会话与取证时间</b></div>
-      </div>
-      <div class="shot has-img">
-        <div class="no">02</div>
-        <img src="img/14_demo_badcases.png" alt="快速演示 · 真实反面教材">
-        <div class="cap">快速演示 · 真实反面教材</div>
-        <div class="why">侧栏两个<b>实测低分点位</b>可一键复现，中栏同步显示推理与工具调用</div>
-      </div>
-      <div class="shot has-img">
-        <div class="no">03</div>
-        <img src="img/08_cand_deal_tags.png" alt="候选商铺卡片">
-        <div class="cap">候选商铺卡片 · 点卡片即启动分析</div>
-        <div class="why">一次抓回 <b>15 个真实在租铺位</b>，每张卡带<b>房源性</b>与<b>定位精度</b>标签</div>
-      </div>
-      <div class="shot has-img">
-        <div class="no">04</div>
-        <img src="img/16_auditor_796.png" alt="模型审计师实时口径">
-        <div class="cap">审计师实时口径 · 在用样本与扩样并列</div>
-        <div class="why">在用 <b>75 家</b>中位锚点（取自 83 家·剔 8 家低证据点），握着 <b>796 家</b>扩样并说明「为什么还没敢用」</div>
-      </div>
-    </div>
-
-    <div class="card" style="padding:2.6mm 3.2mm">
-      <div class="grid g2" style="gap:4mm;align-items:center">
-        <div class="tiny">
-          另附<b>演示视频</b>（≤5 分钟）与<b>可运行链接</b>，评委可直接实测：
-          视频给过程的连贯性，本页截图给可定格的证据。
-        </div>
-        <div class="tiny">
-          容错准备：本地 POI 库优先，<b>现场断网也能出完整结论</b>；LLM 全挂走规则兜底，<b>关键结论不丢</b>；访问门禁防止演示额度被刷光。
-        </div>
-      </div>
-    </div>
-  </div>
+          </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>伍 · 交付</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>五 · 产品交付</div></div>
   <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">19</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">VALUE &amp; ROADMAP</span></div>
-      <h2><span class="no">17</span>它能带来什么，接下来往哪走</h2>
+      <h2><span class="no">17</span>价值与规划 · 接下来往哪走</h2>
     </div>
 
     <div class="card ink" style="padding:3mm 4mm">
@@ -2452,15 +2435,19 @@ ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.15mm;
         位置决定流量的上限，净利润决定能不能活到兑现那天
       </div>
     </div>
-  </div>
+  
+
+
+<h3>使用说明 · 操作流程五步</h3><span class="tag gold">不出现表单</span>
+        </div>
 </section><section class="page">
-  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>总结</div></div>
+  <div class="hd"><div class="hd-l"><span class="dot"></span>址南针 · 应用方案</div><div>六 · 总结</div></div>
   <div class="ft"><div>址南针 · 浙江商铺选址决策智能体</div><div class="pn">20</div></div>
 
   <div class="bd">
     <div>
       <div class="sech"><span class="kicker">AT A GLANCE</span></div>
-      <h2><span class="no">18</span>一页看完这份作品</h2>
+      <h2><span class="no">18</span>总结 · 一页看完这份作品</h2>
       <p class="lead" style="margin-top:1.2mm">
         把一次选址决策，从「这个位置多少分」推进到「<b>这笔账算不算得过来</b>」。
       </p>

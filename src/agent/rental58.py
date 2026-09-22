@@ -332,7 +332,13 @@ async def _fetch_details_async(urls, timeout):
         try:
             browser = await p.chromium.launch(headless=True, channel='chrome')
         except Exception:
-            browser = await p.chromium.launch(headless=True)
+            try:
+                browser = await p.chromium.launch(headless=True)
+            except Exception as chromium_error:
+                raise RuntimeError(
+                    'Playwright Chromium 不可用；请在部署构建阶段运行 '
+                    '`playwright install --with-deps chromium`'
+                ) from chromium_error
         try:
             results = await asyncio.gather(
                 *[_load_detail(browser, u, timeout) for u in urls])
@@ -478,7 +484,13 @@ async def _fetch_async(urls, timeout, limit):
         try:
             browser = await p.chromium.launch(headless=True, channel='chrome')
         except Exception:
-            browser = await p.chromium.launch(headless=True)
+            try:
+                browser = await p.chromium.launch(headless=True)
+            except Exception as chromium_error:
+                raise RuntimeError(
+                    'Playwright Chromium 不可用；请在部署构建阶段运行 '
+                    '`playwright install --with-deps chromium`'
+                ) from chromium_error
         try:
             results = await asyncio.gather(
                 *[_load_one(browser, u, timeout) for u in urls])

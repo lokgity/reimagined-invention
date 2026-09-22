@@ -69,6 +69,26 @@ python -m chainlit run src/ui/app_chainlit.py --port 8502 --host 0.0.0.0
 
 浏览器打开 **http://127.0.0.1:8502** 即可开始对话。
 
+### Render 公网部署
+
+仓库根目录的 `render.yaml` 已配置 Python 3.12、动态 `$PORT`、健康检查，以及
+`playwright install --with-deps chromium`。在 Render 选择 Blueprint 部署即可自动执行。
+如果使用已有 Web Service 而不是 Blueprint，请将 Build Command 设置为：
+
+```bash
+pip install -r requirements.txt && playwright install --with-deps chromium
+```
+
+Start Command 设置为：
+
+```bash
+python -m chainlit run src/ui/app_chainlit.py --host 0.0.0.0 --port $PORT
+```
+
+Render 环境变量仍需在控制台单独填写 `AMAP_KEY`、`AMAP_SECRET` 以及至少一个
+`LLM_*_API_KEY`；不要上传 `.env`。公开演示需要设置 `DEMO_MODE=1`，并保留
+`RATE_PER_MIN`、`RATE_PER_DAY`、`DAILY_BUDGET` 限流预算。
+
 ### 4.（可选）预抓取浙江省 POI 数据
 
 评分默认使用**实时周边搜索**（冷门地址也能覆盖）；如需离线演示可预抓：
