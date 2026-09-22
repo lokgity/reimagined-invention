@@ -337,21 +337,25 @@ async def _load_detail(browser, url, timeout):
                 pass
 
 
-async def _fetch_details_async(urls, timeout):
+async def _fetch_details_async(urls, timeout, total_timeout=7.0):
     """并发抓详情页。返回 {url: text}；失败的条目**不出现在返回值里**（不写空串占位）。"""
     from playwright.async_api import async_playwright
     out = {}
     async with async_playwright() as p:
         try:
-            browser = await _launch_browser(p)
+            browser = await asyncio.wait_for(
+                _launch_browser(p), timeout=max(3.0, min(15.0, total_timeout)))
         except Exception as chromium_error:
             raise RuntimeError(
                 'Playwright Chromium 不可用；请在部署构建阶段运行 '
                 '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
             ) from chromium_error
         try:
-            results = await asyncio.gather(
-                *[_load_detail(browser, u, timeout) for u in urls])
+            results = await asyncio.wait_for(
+                asyncio.gather(*[_load_detail(browser, u, timeout) for u in urls]),
+                timeout=max(3.0, float(total_timeout)))
+        except asyncio.TimeoutError:
+            results = [(u, '', '详情抓取总时限已到') for u in urls]
         finally:
             try:
                 await browser.close()
@@ -399,7 +403,8 @@ def fetch_details(items, timeout=18, max_n=12, budget_s=7.0, meta=None):
         return items
     urls = [it['detail_url'] for it in targets]
     try:
-        texts = _run_async(_fetch_details_async(urls, timeout))
+        texts = _run_async(
+            _fetch_details_async(urls, timeout, total_timeout=budget_s))
     except Exception as e:
         if meta is not None:
             meta['reason'] = f'{type(e).__name__}: {e}'
@@ -505,21 +510,26 @@ async def _load_one(browser, url, timeout):
     return url, [], f'重试 1 次后仍失败：{last_error}'
 
 
-async def _fetch_async(urls, timeout, limit):
-    """并发抓取多页。返回 (cards_by_url, page_errors)。"""
+async def _fetch_async(urls, timeout, limit, total_timeout=12.0):
+    """并发抓取多页，且有硬性总时限。返回 (cards_by_url, page_errors)。"""
     from playwright.async_api import async_playwright
     out, errs = {}, []
     async with async_playwright() as p:
         try:
-            browser = await _launch_browser(p)
+            browser = await asyncio.wait_for(
+                _launch_browser(p), timeout=max(3.0, min(15.0, total_timeout)))
         except Exception as chromium_error:
             raise RuntimeError(
                 'Playwright Chromium 不可用；请在部署构建阶段运行 '
                 '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
             ) from chromium_error
         try:
-            results = await asyncio.gather(
-                *[_load_one(browser, u, timeout) for u in urls])
+            results = await asyncio.wait_for(
+                asyncio.gather(*[_load_one(browser, u, timeout) for u in urls]),
+                timeout=max(3.0, float(total_timeout)))
+        except asyncio.TimeoutError:
+            results = [(u, [], '抓取总时限已到（页面可能响应慢或被限流）')
+                       for u in urls]
         finally:
             try:
                 await browser.close()
@@ -603,7 +613,8 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
                 meta['stopped_by'] = f'并发上限 {max_parallel} 页'
     cards_by_url, page_errors = {}, []
     try:
-        cards_by_url, page_errors = _run_async(_fetch_async(urls, timeout, limit))
+        cards_by_url, page_errors = _run_async(
+            _fetch_async(urls, timeout, limit, total_timeout=budget_s))
     except Exception as e:
         if meta is not None:
             meta['reason'] = f'{type(e).__name__}: {e}'
