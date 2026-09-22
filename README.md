@@ -72,11 +72,13 @@ python -m chainlit run src/ui/app_chainlit.py --port 8502 --host 0.0.0.0
 ### Render 公网部署
 
 仓库根目录的 `render.yaml` 已配置 Python 3.12、动态 `$PORT`、健康检查，以及
-`playwright install --with-deps chromium`。在 Render 选择 Blueprint 部署即可自动执行。
+`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`。在 Render
+选择 Blueprint 部署即可自动执行；该设置把浏览器放在 Playwright 包内，避免
+`/opt/render/.cache` 在构建与运行阶段不一致。
 如果使用已有 Web Service 而不是 Blueprint，请将 Build Command 设置为：
 
 ```bash
-pip install -r requirements.txt && playwright install --with-deps chromium
+PLAYWRIGHT_BROWSERS_PATH=0 pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium
 ```
 
 Start Command 设置为：
@@ -88,6 +90,8 @@ python -m chainlit run src/ui/app_chainlit.py --host 0.0.0.0 --port $PORT
 Render 环境变量仍需在控制台单独填写 `AMAP_KEY`、`AMAP_SECRET` 以及至少一个
 `LLM_*_API_KEY`；不要上传 `.env`。公开演示需要设置 `DEMO_MODE=1`，并保留
 `RATE_PER_MIN`、`RATE_PER_DAY`、`DAILY_BUDGET` 限流预算。
+如果 Render 服务不是通过 Blueprint 创建的，修改 `render.yaml` 不会自动改变既有
+服务；请在该服务中手动更新 Build Command，并执行一次 **Manual Deploy → Clear build cache & deploy**。
 
 ### 4.（可选）预抓取浙江省 POI 数据
 

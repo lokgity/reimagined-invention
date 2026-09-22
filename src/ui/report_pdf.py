@@ -335,11 +335,12 @@ def build_analysis_pdf(result: dict, interpretation: str = '') -> bytes | None:
                 browser = p.chromium.launch(headless=True, channel="chrome")
             except Exception:
                 try:
-                    browser = p.chromium.launch(headless=True)
+                    browser = p.chromium.launch(
+                        headless=True, executable_path=p.chromium.executable_path)
                 except Exception as exc:
                     raise RuntimeError(
                         'Playwright Chromium 不可用；请在部署构建阶段运行 '
-                        '`playwright install --with-deps chromium`'
+                        '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
                     ) from exc
             page = browser.new_page()
             page.set_content(html_doc, wait_until='load')

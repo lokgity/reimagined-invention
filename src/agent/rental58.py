@@ -64,6 +64,22 @@ CITY_CODES = {
     '舟山': 'zs', '台州': 'tz', '丽水': 'ls',
 }
 
+
+async def _launch_browser(playwright):
+    """Launch the bundled Chromium executable, not the optional headless shell.
+
+    Render builds can install Chromium into the Playwright package itself
+    (PLAYWRIGHT_BROWSERS_PATH=0), while Playwright's default headless launch
+    may still resolve a separately cached headless-shell revision.
+    """
+    try:
+        return await playwright.chromium.launch(
+            headless=True, channel='chrome')
+    except Exception:
+        executable = playwright.chromium.executable_path
+        return await playwright.chromium.launch(
+            headless=True, executable_path=executable)
+
 # 标题里的面积："35平" / "35 平米" / "100㎡" / "58平方"
 # ⚠️ 负向断言 `(?!方)` 防止把"35平方米"里的"35平"重复计数；范围校验另在取值时做
 _AREA_IN_TITLE = re.compile(r'(\d{1,4}(?:\.\d)?)\s*(?:平方米|平米|平方|㎡|平(?!方))')
@@ -330,15 +346,12 @@ async def _fetch_details_async(urls, timeout):
     out = {}
     async with async_playwright() as p:
         try:
-            browser = await p.chromium.launch(headless=True, channel='chrome')
-        except Exception:
-            try:
-                browser = await p.chromium.launch(headless=True)
-            except Exception as chromium_error:
-                raise RuntimeError(
-                    'Playwright Chromium 不可用；请在部署构建阶段运行 '
-                    '`playwright install --with-deps chromium`'
-                ) from chromium_error
+            browser = await _launch_browser(p)
+        except Exception as chromium_error:
+            raise RuntimeError(
+                'Playwright Chromium 不可用；请在部署构建阶段运行 '
+                '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
+            ) from chromium_error
         try:
             results = await asyncio.gather(
                 *[_load_detail(browser, u, timeout) for u in urls])
@@ -482,15 +495,12 @@ async def _fetch_async(urls, timeout, limit):
     out, errs = {}, []
     async with async_playwright() as p:
         try:
-            browser = await p.chromium.launch(headless=True, channel='chrome')
-        except Exception:
-            try:
-                browser = await p.chromium.launch(headless=True)
-            except Exception as chromium_error:
-                raise RuntimeError(
-                    'Playwright Chromium 不可用；请在部署构建阶段运行 '
-                    '`playwright install --with-deps chromium`'
-                ) from chromium_error
+            browser = await _launch_browser(p)
+        except Exception as chromium_error:
+            raise RuntimeError(
+                'Playwright Chromium 不可用；请在部署构建阶段运行 '
+                '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
+            ) from chromium_error
         try:
             results = await asyncio.gather(
                 *[_load_one(browser, u, timeout) for u in urls])
