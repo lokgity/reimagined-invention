@@ -330,18 +330,18 @@ def build_analysis_pdf(result: dict, interpretation: str = '') -> bytes | None:
 
     try:
         with sync_playwright() as p:
-            # 优先系统 Chrome（避免依赖 Playwright 自带浏览器被清理）
+            # Use the browser installed by the build command; do not probe
+            # system Chrome or fall back to Playwright's headless shell.
+            executable = p.chromium.executable_path
+            print(f'[playwright] PDF executable={executable}', flush=True)
             try:
-                browser = p.chromium.launch(headless=True, channel="chrome")
-            except Exception:
-                try:
-                    browser = p.chromium.launch(
-                        headless=True, executable_path=p.chromium.executable_path)
-                except Exception as exc:
-                    raise RuntimeError(
-                        'Playwright Chromium 不可用；请在部署构建阶段运行 '
-                        '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
-                    ) from exc
+                browser = p.chromium.launch(
+                    headless=True, executable_path=executable)
+            except Exception as exc:
+                raise RuntimeError(
+                    'Playwright Chromium 不可用；请在部署构建阶段运行 '
+                    '`PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps chromium`'
+                ) from exc
             page = browser.new_page()
             page.set_content(html_doc, wait_until='load')
             pdf = page.pdf(format='A4', print_background=True,

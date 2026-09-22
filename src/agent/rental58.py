@@ -66,19 +66,16 @@ CITY_CODES = {
 
 
 async def _launch_browser(playwright):
-    """Launch the bundled Chromium executable, not the optional headless shell.
+    """Launch the bundled Chromium executable, never the optional headless shell.
 
     Render builds can install Chromium into the Playwright package itself
-    (PLAYWRIGHT_BROWSERS_PATH=0), while Playwright's default headless launch
-    may still resolve a separately cached headless-shell revision.
+    (PLAYWRIGHT_BROWSERS_PATH=0). Passing the path explicitly avoids both
+    system Chrome probing and Playwright's default headless-shell resolution.
     """
-    try:
-        return await playwright.chromium.launch(
-            headless=True, channel='chrome')
-    except Exception:
-        executable = playwright.chromium.executable_path
-        return await playwright.chromium.launch(
-            headless=True, executable_path=executable)
+    executable = playwright.chromium.executable_path
+    print(f'[playwright] executable={executable}', flush=True)
+    return await playwright.chromium.launch(
+        headless=True, executable_path=executable)
 
 # 标题里的面积："35平" / "35 平米" / "100㎡" / "58平方"
 # ⚠️ 负向断言 `(?!方)` 防止把"35平方米"里的"35平"重复计数；范围校验另在取值时做
