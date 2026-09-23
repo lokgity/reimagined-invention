@@ -116,6 +116,18 @@ def _parse_card(text):
         m = re.match(r'([\d.]+)\s*(万|元)/月', l)
         if m and price is None:
             price = float(m.group(1)) * (10000 if m.group(2) == '万' else 1)
+            # ⚠️ 2026-09-23：**移动端把「价格 + 面积」写在同一行**。
+            # 实测 m.58.com 卡片 innerText 的最后一行是 `'7350元/月 245㎡'`，
+            # 而下面那条面积规则是 `^(\d+)\s*㎡$`（要求**整行只有面积** —— 那是 PC 站
+            # 「价格一行、面积一行」的格式）。原来的 `continue` 让这一行被价格用掉就跳过，
+            # 面积永远轮不到 ⇒ **租金有、面积全 None**（PC 站被验证码拦后 100% 复现）。
+            # 这里先在本行内找一次面积，PC 那条规则保持不动（两种格式都兼容）。
+            if area is None:
+                m_inline = re.search(r'(\d{1,4})\s*㎡', l)
+                if m_inline:
+                    a_inline = int(m_inline.group(1))
+                    if 5 <= a_inline <= 5000:
+                        area = a_inline
             continue
         m2 = re.match(r'([\d.]+)元/㎡/天', l)
         if m2 and price_per is None:
@@ -587,14 +599,58 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
                      'elapsed_s': 0.0, 'fetched_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                      'source': '58同城'})
     t_start = time.monotonic()
-    code = CITY_CODES.get(city, city)
+    # ⚠️ 2026-09-23（问题①）：`CITY_CODES.get(city, city)` 的默认值是**危险**的 ——
+    #    查不到就把 city 原样当域名，拼出 `https://海宁.58.com/shangpu/` 这种
+    #    无效地址（真机实测：4 路全部 0 条、耗时 21.4s 才失败，用户白等）。
+    #    这里补一层**区县反推**：'海宁' → '嘉兴'、'嘉兴海宁' → '嘉兴'。
+    #    放在 fetch_shops 内部而不是只改调用方，是因为本项目**第一高发错**
+    #    就是"同一件事有几处表面"——调用方会新增，防御要长在最内层。
+    code = CITY_CODES.get(city)
+    if code is None:
+        try:
+            from agent.zj_districts import DISTRICT_TO_CITY, DISTRICT_TO_CITY_SHORT
+            c2 = city or ''
+            for c in ('杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴',
+                      '金华', '衢州', '舟山', '台州', '丽水'):
+                if c in c2:
+                    c2 = c
+                    break
+            else:
+                for dist in sorted(DISTRICT_TO_CITY, key=len, reverse=True):
+                    if dist in (city or ''):
+                        c2 = DISTRICT_TO_CITY[dist]
+                        break
+                else:
+                    for short in sorted(DISTRICT_TO_CITY_SHORT, key=len, reverse=True):
+                        if short in (city or ''):
+                            c2 = DISTRICT_TO_CITY_SHORT[short]
+                            break
+            code = CITY_CODES.get(c2)
+            if meta is not None:
+                meta['city_resolved'] = f'{city} → {c2}' if code else ''
+            city = c2 if code else city
+        except Exception:
+            pass
+    # 反推也失败 → 不要拿中文当域名发请求（那只会白等 20 秒）
+    if not code:
+        if meta is not None:
+            meta['reason'] = (f'城市「{city}」不在浙江 11 个地级市内，'
+                              '也没有对应的 58 分站；请给出地级市或浙江区县名。')
+            meta['ok'] = False
+            meta['elapsed_s'] = 0.0
+        return []
     urls = []
+    # ⚠️ 2026-09-23：抓取重心从 PC 站挪到**移动端**。
+    # PC 站（*.58.com）已被验证码全面接管（实测 jx/jiaxing/haining/hz 四个域名返回**同一个**
+    # 验证码页），**翻多少页都是同一个验证码页** —— 白等，还白占并发额度（总并发上限 4 路）。
+    # 而移动端 `m.58.com/{code}/shangpu/pn2/`、`pn3/` 实测有效（内容与首页不同）。
+    # 所以 `pages` 现在的语义是「**移动端**翻到第几页」，PC 只留首页做"站点策略回摆"的探测。
     if pages and pages >= 1:
         urls.append(f'https://{code}.58.com/shangpu/')
-        for n in range(2, pages + 1):
-            urls.append(f'https://{code}.58.com/shangpu/pn{n}/')
     if mobile:
         urls.append(f'https://m.58.com/{code}/shangpu/')
+        for n in range(2, pages + 1):
+            urls.append(f'https://m.58.com/{code}/shangpu/pn{n}/')
     try:
         import playwright  # noqa: F401
     except Exception as e:

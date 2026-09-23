@@ -2888,6 +2888,18 @@
   function initTheme() {
     var m = null; try { m = localStorage.getItem('zl_theme'); } catch (e) { /* ignore */ }
     if (m) applyTheme(m);
+    /* ⚠️ 2026-09-23 补：原来只在启动时读一次 matchMedia，
+       系统主题变了页面不跟着切 —— 而设置页那句「跟随系统会随操作系统自动切换」
+       就成了空头承诺（实测：改系统主题后页面必须刷新才变）。
+       只在 mode==='system'（或未设置）时响应：用户手动选了浅/深色就不该被系统抢走。 */
+    try {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var onSysChange = function () {
+        if (currentThemeMode() === 'system') applyTheme('system');
+      };
+      if (mq.addEventListener) mq.addEventListener('change', onSysChange);
+      else if (mq.addListener) mq.addListener(onSysChange);   // 老内核兜底
+    } catch (e) { /* ignore */ }
   }
   function showSetTheme() {
     setTitle.textContent = '亮暗模式';

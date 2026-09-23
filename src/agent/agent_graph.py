@@ -54,6 +54,8 @@ from agent.agent import (
     RENT_PATTERN, REVENUE_PATTERN, DAILY_REVENUE_PATTERN,
 )
 from agent.rental58 import fetch_shops, CITY_CODES
+from agent.zj_districts import (
+    DISTRICT_TO_CITY, DISTRICT_TO_CITY_SHORT, AMBIGUOUS_SHORT)
 from agent.knowledge import build_context as kb_context
 from agent.knowledge import policy_links as kb_policy_links
 from experts import registry as experts
@@ -259,27 +261,85 @@ async def _emit(state: AgentState, kind: str, name: str, text: str = '',
 
 
 def extract_city(addr: str) -> Optional[str]:
-    """从地址中提取城市名"""
+    """从地址中提取城市名（地级市）。
+
+    ⚠️ 2026-09-23 扩展（问题①）：**只给区县/县级市时也要认得出地级市**。
+       改造前只扫 11 个地级市名，于是：
+         `extract_city('瓯海区')` → None
+         `extract_city('海宁')`   → None   ← 连带 fetch_shops 拼出
+                                             `https://海宁.58.com/…`（真机 4 路全废）
+       现在补一条区县反推：先扫地级市（命中即返回，行为不变），
+       扫不到再查 `zj_districts` 的区县表反推地级市。
+       ⚠️ 顺序不能反：区县表里也有 '江北区' 这类在多个市出现的短名，
+          但**含后缀的全称**（如 '江北区'）在浙江是唯一的，短名表只收唯一的，
+          所以两条路都不串城市。详见 `zj_districts.py` 的 AMBIGUOUS_SHORT。
+    """
     if not addr:
         return None
     for c in ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴',
               '金华', '衢州', '舟山', '台州', '丽水']:
         if c in addr:
             return c
+    return city_of_district(addr)
+
+
+def city_of_district(text: str) -> Optional[str]:
+    """从任意文本里找浙江区县/县级市名，反推它所属的地级市。
+
+    匹配顺序（长优先，避免"海宁"被更短的键先吃掉）：
+      ① 含后缀全称（'瓯海区' / '海宁市' / '桐庐县'）
+      ② 无后缀短名（'瓯海' / '义乌' / '鄞州'），仅限无歧义的
+    返回地级市名（不含"市"，与 CITY_CODES 键一致）或 None。
+    """
+    t = text or ''
+    if not t:
+        return None
+    for dist in _DISTRICTS_BY_LEN:
+        if dist in t:
+            return DISTRICT_TO_CITY[dist]
+    for short in _SHORTS_BY_LEN:
+        if short in t:
+            return DISTRICT_TO_CITY_SHORT[short]
     return None
 
 
+# 区县查找顺序表：**按长度降序**，长的先匹配。
+# ⚠️ 为什么必须排序：'海宁' 与 '海宁市' 同时存在，若不按长度优先，
+#    会先命中短的，把 '海宁市' 里的 '海宁' 匹配走 —— 结果虽然一样（同市），
+#    但像 '临安' 与 '临安区'、'富阳' 与 '富阳区' 这种若将来出现跨市同名就会串。
+#    统一按长度降序是最省事的确定性规则（不依赖 dict 插入顺序）。
+_DISTRICTS_BY_LEN = sorted(DISTRICT_TO_CITY, key=len, reverse=True)
+_SHORTS_BY_LEN = sorted(DISTRICT_TO_CITY_SHORT, key=len, reverse=True)
+# 钉住：歧义短名**绝不能**出现在识别表里（否则会串城市）
+assert not (set(DISTRICT_TO_CITY_SHORT) & set(AMBIGUOUS_SHORT)), \
+    'DISTRICT_TO_CITY_SHORT 里混进了歧义短名：%r' % (
+        sorted(set(DISTRICT_TO_CITY_SHORT) & set(AMBIGUOUS_SHORT)),)
+
+
 def extract_district(addr: str) -> Optional[str]:
-    """从地址中提取区名"""
+    """从地址中提取区县名（含后缀；找不到区县则返回 None）。
+
+    ⚠️ 2026-09-23 修：改造前用 `re.search(r'([\\u4e00-\\u9fa5]+(?:区|县))')`，
+       对 '温州瓯海区' 会贪婪吃掉城市名返回 '温州瓯海区'（当成区名用会 geocode 失败）；
+       对县级市（'海宁市'/'义乌市'，后缀是"市"）完全匹配不到。
+       现在改成"先剥地级市 → 再查区县表"，全称优先、短名兜底。
+    """
     if not addr:
         return None
+    t = addr
     for c in ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴',
               '金华', '衢州', '舟山', '台州', '丽水']:
-        if addr.startswith(c):
-            addr = addr[len(c):]
+        if t.startswith(c):
+            t = t[len(c):]
             break
-    m = re.search(r'([\u4e00-\u9fa5]+(?:区|县))', addr)
-    return m.group(1) if m else None
+    for dist in _DISTRICTS_BY_LEN:
+        if dist in t:
+            return dist
+    for short in _SHORTS_BY_LEN:
+        if short in t:
+            return short
+    return None
+
 
 
 def _has_specific_shop(text: str) -> bool:
@@ -319,9 +379,91 @@ def _wants_find(text: str) -> bool:
     return False
 
 
+# ---- 新一轮需求：分析完成后，用户又提了一个**独立的开店需求** -------------
+# 背景（问题②，策 2026-09-23）：
+#   「当我完成一轮循环后，用户再次说想在什么地方开店的时候，工作流没办法
+#    正常回到最开始的地方，反而在我之前选店铺的地方一直确认」
+# 根因两条（缺一不可）：
+#   A) `interpret_node` 结尾写死 `phase='chat'`，下一轮 prev_phase 不在任何
+#      分支里，掉到通用分流；
+#   B) `classify_node` 的返回全是**"新值 or 旧值"**：
+#        'address': addr or state.get('address')
+#        'rent':    info.get('rent') if ... else state.get('rent')
+#        'candidates': state.get('candidates', [])       ← 永不重置
+#      于是用户没给新地区（或新地区解析不出）时，**旧地址必然复活** ——
+#      这就是"一直确认上一个地区"的主凶。候选列表同理：旧铺源一直在。
+#
+# 判据（保守，宁可不清也不能误清）：
+#   · 上一轮必须**已经产出过分析或候选**（否则本来就在起点，没什么可清）
+#   · 用户必须给出**新的地点**（extract_city 能认出来）
+#   · 且必须是"开店/找铺"意图（_OPEN_INTENT / _wants_find / _wants_restart）
+#   ⚠️ 三个条件同时满足才清场 —— 单独"给了地点"可能是回答当前流程的追问。
+def _is_new_round(state: AgentState, text: str) -> bool:
+    """用户是否在开启**新一轮**开店需求（需要把上一轮的地/铺/结果清掉）。"""
+    prev = state.get('phase') or 'intro'
+    # 尚未产出任何结果 -> 看 phase 是否已"走进去"（走过若干步就该允许重启）
+    produced = bool(state.get('candidates')) or bool(state.get('score_result'))
+    if not produced and prev not in ('interpret', 'chat', 'select_shop',
+                                     'reverse_match', 'collect_invest',
+                                     'collect_brand', 'collect_rent',
+                                     'collect_area', 'collect_staff',
+                                     'analysis', 'report'):
+        return False
+    if not extract_city(text):          # 没给可识别的新地点 -> 不清
+        return False
+    # 纯咨询不能被当成"新一轮开店"（"杭州开店租金什么水平？"）
+    if _is_consulting(text) and not _wants_start_flow(text):
+        return False
+    return bool(_has_open_verb(text)
+                or _wants_find(text) or _wants_restart(text))
+
+
+# 清场名单：**所有**跨轮次携带、会导致"上一轮残留"的键。
+# ⚠️ 这是本项目第一高发错"同一件事有几处表面"的典型现场 ——
+#    漏掉任何一个，症状就会以另一种形式回来（漏 candidates = 旧铺源还在；
+#    漏 score_result = 旧评分还在；漏 selected_idx = 直接跳回"选中的铺子"）。
+#    新增跨轮字段时**必须**同步加到这里，`verify_new_round.py` 会钉住这张表。
+_RESET_KEYS = (
+    # 地点与铺源
+    'address', 'city',
+    'candidates', 'selected_idx', 'pending_coord', 'list_shown',
+    # 分析结果与解读
+    'score_result', 'interpretation', 'context',
+    # 三态与推算区间（跟上一套租金/面积绑定，不清会污染新铺子的标注）
+    'rent_state', 'area_state', 'rent_band',
+    # 各入口的分支数据
+    'shop_first_data', 'category_recs', 'place_first_mode',
+    # 对比
+    'comparison', 'compare_pending',
+)
+
+
+def _reset_for_new_round() -> Dict[str, Any]:
+    """新一轮清场：把跨轮次残留的字段一次性归零。
+
+    ⚠️ 故意**不清**这些（清了会丢用户正在沿用的事实）：
+        category —— 「我想在瓯海开奶茶店」里品类是有效的新信息；
+        brand / investment / staff —— 用户可能「换个地方还是开蜜雪」；
+        rent / area —— 用户可能「同样 8000 租金、30 平，换个区」（由新值覆盖，
+                       没有新值时保留是**有意的**，见下方 classify 返回处注释）；
+        messages / attachments / steps / hooks / expert —— 会话级，跨轮必须留。
+    """
+    out = {}
+    for k in _RESET_KEYS:
+        out[k] = None
+    # 这几个下游按"空容器"读，给 None 会让 .get() 链炸
+    out['candidates'] = []
+    out['category_recs'] = []
+    out['shop_first_data'] = {}
+    out['list_shown'] = False
+    out['compare_pending'] = False
+    return out
+
+
 def _wants_restart(text: str) -> bool:
     """是否明确要"换/重新找"（用于已有具体商铺时放弃当前分析）"""
-    for kw in ['换一个', '换家', '重新找', '再推荐', '再找', '换到', '换个',
+    for kw in ['换一个', '换家', '重新找', '再推荐', '再找', '换到', '换个', '换成',
+               '改到', '改在', '改成', '换去', '转到', '挪到', '移到',
                '帮我找', '帮我查', '帮我推荐', '其他区域', '别的', '算了',
                '重新推荐', '再看看']:
         if kw in text:
@@ -503,6 +645,35 @@ _OPEN_INTENT = [
     '适合开店', '能开店', '可以开店', '能不能开店', '适不适合开店',
 ]
 
+
+def _has_open_verb(text: str) -> bool:
+    """是否含"开店"类意图 —— 词表之外再兜一层「开/做 + 品类 + 店」。
+
+    ⚠️ 2026-09-23 补：用户日常说法是「**我想去海宁开奶茶店**」，
+       而 `_OPEN_INTENT` 里只有「开店 / 开一家 / 开个店」——
+       **"开奶茶店"不是任何词条的子串**，于是这句话被判成"没有开店意图"，
+       新一轮清场不触发（真机实测：换到瓯海区却继续显示鹿城区的铺子）。
+       这类"开+品类+店"无法穷举（开奶茶店/开面馆/开便利店/开水果店…），
+       所以用模式匹配：`开` 与 `店` 之间夹 1~5 个字，且中间**不含**疑问词。
+    """
+    import re as _re
+    t = text or ''
+    if any(k in t for k in _OPEN_INTENT):
+        return True
+    # 「开XX店」或「开XX」：XX 是品类/业态（开奶茶店 / 开面馆 / 开便利店）
+    # ⚠️ 禁止把疑问/否定夹在里面（"开什么店"、"开个店要多少钱"不是新开店意图）
+    _BAD_MID = ('什么', '哪', '吗', '呢', '不', '没', '多少', '几')
+    for m in _re.finditer(r'开(.{1,5}?)(?:店|馆|铺|吧|行|铺子)?(?=[，。,.！!？?\s]|$)', t):
+        mid = m.group(1)
+        if any(bad in mid for bad in _BAD_MID):
+            continue
+        if mid:
+            return True
+    # 「想开/要开/去开/打算开/准备开/计划开」+ 后面跟品类
+    if _re.search(r'(?:想开|要开|去开|改开|打算开|准备开|计划开)', t):
+        return True
+    return False
+
 # 位置/方位提示词（用户在用口语指认某个地点，而不是在问知识）
 _PLACE_HINTS = ['这边', '那边', '附近', '周围', '这一带', '那块', '这块', '这带',
                 '地段', '商圈', '区域', '位置', '地点']
@@ -554,7 +725,14 @@ def _wants_place_first(text: str) -> bool:
         return False
     if _mentions_existing_shop(t):            # 已有铺子 -> 那是 shop_first 的活
         return False
-    if not (any(k in t for k in _OPEN_INTENT) or _wants_find(t)):
+    # ⚠️ 2026-09-23：函数内部也加一道"已给品类就不接管"的闸门。
+    #    原来这条契约只由调用方 `and not has_cat` 保证，而 `_has_open_verb`
+    #    扩大召回后（"我想开奶茶店" 现在能命中），函数自己的兜底分支会放它进来 ——
+    #    与注释里"A 流程只在用户自己说了品类时才触发"自相矛盾。
+    #    契约放在函数内部才自洽，不依赖调用方是否记得加 `not has_cat`。
+    if parse_request(t).get('category'):
+        return False
+    if not (_has_open_verb(t) or _wants_find(t)):
         return False
     if _has_place_hint(t):
         return True
@@ -1235,6 +1413,21 @@ async def classify_node(state: AgentState) -> Dict[str, Any]:
     elif addr:
         addr = _clean_area(addr)
 
+    # ---- 问题①（续）：`parse_request` 抽不到"纯区县"写法的地址 ----
+    # ⚠️ 2026-09-23 实测：`parse_request('我打算在瓯海区开一家奶茶店')` 的
+    #    `address` 是 **None**（它只认「温州鹿城区开奶茶店」这种带前缀地名的写法），
+    #    于是下一行 `addr or state.get('address')` 落回**上一轮的旧地址** ——
+    #    用户明明换了地方，却拿旧地址去检索，候选全是老地方的铺子。
+    #    `extract_city` / `extract_district` 其实都认（'瓯海区'→温州/瓯海区），
+    #    所以这里用它们兜底补出地址，优先级：本轮新地址 > 区县兜底 > 旧地址。
+    #    ⚠️ 只在"本轮说了地点"时才兜底 —— 否则会把旧地址误当新地点。
+    if not info.get('address'):
+        _d = extract_district(user_msg)
+        if _d:
+            _c = extract_city(user_msg) or ''
+            # 拼成「温州瓯海区」交给下游（geocode/58 的 area_filter 都要吃这个粒度）
+            addr = (_c + _d) if (_c and _c not in _d) else _d
+
     # 执行过程：意图识别思考
     cat_txt = info.get('category') or state.get('category') or '？'
     addr_txt = addr or '？'
@@ -1244,7 +1437,19 @@ async def classify_node(state: AgentState) -> Dict[str, Any]:
                 f'→ 识别结果：品类【{cat_txt}】、区域【{addr_txt}】、{has_spec_txt}\n'
                 f'→ 本轮流程方向：{phase}')
 
-    return {
+    # ---- 问题②：新一轮需求 -> 先把上一轮的残留清干净，再按新需求走 ----
+    # ⚠️ 必须在**算完 addr 之后、构造返回之前**做：清场要抹掉"旧值"，
+    #    但不能把这一轮刚解析出的新地址一起抹掉（下面 `_base` 里用新值覆盖）。
+    _new_round = _is_new_round(state, user_msg)
+    if _new_round:
+        # 新地点已确认可识别 -> 回到地点收集入口（真正"回退到最开始"）。
+        # 已经说了品类就不必再问地点，直接按品类走（no_shop 收集/检索）。
+        phase = 'no_shop' if has_cat else 'place_first'
+
+    # 基础返回：正常路径一律"有新的用新的、没有沿旧值"（跨轮延续）；
+    # 新一轮则先套一层清场，再用这一轮的新值覆盖。
+    _base = {} if not _new_round else _reset_for_new_round()
+    _base.update({
         'messages': state['messages'],
         'category': info.get('category') or state.get('category'),
         'address': addr or state.get('address'),
@@ -1258,23 +1463,46 @@ async def classify_node(state: AgentState) -> Dict[str, Any]:
         'monthly_revenue': revenue if revenue is not None else state.get('monthly_revenue'),
         'phase': phase,
         'missing_info': [],
-        'candidates': state.get('candidates', []),
-        'pending_coord': state.get('pending_coord'),
-        'selected_idx': state.get('selected_idx'),
-        'list_shown': state.get('list_shown', False),
-        'comparison': state.get('comparison'),
-        'compare_pending': state.get('compare_pending', False),
-        'shop_first_data': state.get('shop_first_data') or {},
-        'category_recs': state.get('category_recs') or [],
+        # ⚠️ 下面这几个字段改造前一律写成 `state.get(...)`（无条件沿旧值），
+        #    这正是"换地方了但还显示上一个铺子"的根因。现在：
+        #    新一轮 -> 已被 _reset_for_new_round() 清空，除非本轮有新值；
+        #    正常轮 -> 保持原样（跨轮延续是**有意的**，别顺手改成无条件 None）。
+        # ⚠️ `candidates` 不能用 `_base.get('candidates') or ...`：
+        #    清场后它是**空列表**（falsy），`or` 会把旧值又捞回来 ——
+        #    这正是"清了个寂寞"的经典 falsy 陷阱（空列表/0/False 都 falsy）。
+        #    必须显式判 `_new_round`，不能用 `or` 兜。
+        'candidates': (_base.get('candidates') if _new_round
+                       else state.get('candidates', [])),
+        'pending_coord': _base.get('pending_coord') if _new_round else state.get('pending_coord'),
+        'selected_idx': _base.get('selected_idx') if _new_round else state.get('selected_idx'),
+        'list_shown': _base.get('list_shown') if _new_round else state.get('list_shown', False),
+        'comparison': _base.get('comparison') if _new_round else state.get('comparison'),
+        'compare_pending': _base.get('compare_pending') if _new_round
+        else state.get('compare_pending', False),
+        'shop_first_data': _base.get('shop_first_data') if _new_round
+        else (state.get('shop_first_data') or {}),
+        'category_recs': _base.get('category_recs') if _new_round
+        else (state.get('category_recs') or []),
         # 入口 B：地点优先开关。进入时置位，**用户一旦说出品类就收回**
         # （"我想在滨江开店" → True；之后"那我开奶茶吧" → has_cat → False，
         #   流程交回 A：按品类分析，而不是再反推四品类）
         'place_first_mode': (not has_cat) and (
             bool(state.get('place_first_mode')) or phase == 'place_first'),
-        'rent_state': state.get('rent_state'),
-        'area_state': state.get('area_state'),
-        'rent_band': state.get('rent_band'),
-    }
+        'rent_state': _base.get('rent_state') if _new_round else state.get('rent_state'),
+        'area_state': _base.get('area_state') if _new_round else state.get('area_state'),
+        'rent_band': _base.get('rent_band') if _new_round else state.get('rent_band'),
+    })
+    # 新一轮还要把"上一套的分析结论"清掉（这几个键正常轮**不在**返回里，
+    # 所以只能在这里显式写 None —— 不写的话 LangGraph 会把旧值原样留在 state）
+    if _new_round:
+        _base['score_result'] = None
+        _base['interpretation'] = None
+        _base['context'] = None
+        _base['city'] = extract_city(addr or '') or None
+        await _emit(state, 'think', '识别到新一轮需求',
+                    f'用户提出了新的开店地点（{addr or "？"}），'
+                    f'已清空上一轮的候选与评分，回到选址起点。')
+    return _base
 
 
 # ---------------------------------------------------------------
@@ -2192,12 +2420,15 @@ CAND_TOTAL = 15            # 最终展示的候选数（用户确认：抓 60 / 
 #    （用户诉求②：兜底 POI 不是房源），所以池子必须自己开够。
 CAND_POOL = 40
 RENTAL58_LIMIT = 60        # 58 抓取条数上限（用户确认：抓 60）
-RENTAL58_PAGES = 1         # 58 PC 列表翻页数
-# ⚠️ 2026-09-23：3 → 1。PC 站（*.58.com）已被验证码全面接管（实测 jx/jiaxing/haining/hz
-# 四个域名全返回同一个验证码页），多翻页只是把并发从 2 路抬到 4 路；在窄带宽的机器上
-# 4 路并发会把**整轮**拖过总时限 —— 实测 pages=3 时 4 路全部"抓取总时限已到"→ 0 条，
-# 而 pages=1 时移动端正常给出 5 条真实铺源。候选量由移动端承担，PC 只留 1 页
-# 做"万一站点策略回摆"的探测。
+RENTAL58_PAGES = 3         # **移动端**翻页数（语义 2026-09-23 下午变更，别再按"PC 页数"理解）
+# ⚠️ 语义变更史：
+#   · 原先 = 「PC 列表翻页数」（PC 站翻 3 页）；
+#   · 2026-09-23 上午 3→1：PC 站（*.58.com）被验证码全面接管（jx/jiaxing/haining/hz 四域名
+#     返回同一个验证码页），翻页纯属白等 + 白占并发；
+#   · **2026-09-23 下午改回 3，并把语义改成「移动端翻页数」** —— 实机反馈"过滤区域后
+#     只剩 2 条、宁波之类直接 0 条"，根因是**有效候选池只剩移动端 1 页 ≈110 张卡片**。
+#     现在 `rental58.fetch_shops` 的拼装是「PC 只试首页 + 移动端 /shangpu/ + /pn2/ + /pn3/」，
+#     总并发仍是 4 路（1 PC + 3 移动）≈1.6MB，配 RENTAL58_BUDGET=25s 在 1Mbps 下约 12.5s 有余量。
 RENTAL58_BUDGET = 25.0     # 抓取总时限（秒）
 # ⚠️ 2026-09-23：12 → 25。12s 是当年"4 路并发"的预算；现在 2 路，但单个页面实测要 5~8s，
 # 窄带宽下更慢，留足余量（宁可多等几秒，也不要整轮判失败）。
@@ -2353,6 +2584,15 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
     """
     area = _clean_area(state.get('address') or '')
     category = state.get('category', '')
+    # ⚠️ 2026-09-23（问题①）：城市必须**能反推到地级市**，不能原样传给 fetch_shops。
+    #    背景：`fetch_shops(city)` 内部是 `CITY_CODES.get(city, city)` ——
+    #    查不到就把 city 当**域名**用。真机实测：
+    #        fetch_shops('海宁')      → https://海宁.58.com/shangpu/   4 路全 0 条、21.4s
+    #        fetch_shops('嘉兴海宁')   → https://嘉兴海宁.58.com/shangpu/ 同上
+    #    `extract_city` 现在能反推（'嘉兴海宁' → '嘉兴'、'海宁' → '嘉兴'），
+    #    所以这里拿到的一定是可用的地级市名（或 None）。
+    #    ⚠️ 但 area_filter 用的仍是**含区县的 area**（'嘉兴海宁'）——
+    #       它是拿来做"标题/loc 含该词"的过滤，粒度细一些反而更准。
     city = extract_city(area)
     place_mode = bool(state.get('place_first_mode'))
 

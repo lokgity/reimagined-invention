@@ -59,6 +59,27 @@ OFFLINE = [
     # 这类"没拦住"在本地**永远看不出来**（内网豁免把本地全放行了），
     # 只有月底账单会告诉你 —— 所以必须用套件把默认值与算术钉死。
     'verify_access_gate.py',
+    # 2026-09-23 新增：双主题（亮/暗）对比度。
+    # 抓的是"两套皮各判各的主题"这类**只在暗色下才看得见**的缺陷 ——
+    # `app.css`（消息区 markdown）当时是纯亮色写死（全文件 0 处
+    # prefers-color-scheme），而 `sidebar.js`（自绘面板）是"暗为默认 + html:not(.dark)"，
+    # 于是同一个页面里两种主题并存：标题深字贴深底、白斑马纹撞米色数字。
+    # 这类问题**离线测试全绿、亮色下也全绿**，只有实机切到暗色才现形；
+    # 套件把"必须共用 html.dark 开关"和"?v= 版本号必须 bump"一起钉住。
+    'verify_dark_mode.py',
+    # 2026-09-23 新增：区县/县级市地名识别（问题①）。
+    # 「只输区名会被反问'还没输入地区'」——根因三层：extract_city 只认 11 个
+    # 地级市名；_clean_area 只剥后缀不剥前缀（"我想在海宁" 当地址用）；
+    # fetch_shops 把查不到的城市名**当域名**拼出 https://海宁.58.com（真机 4 路全废、
+    # 耗时 21.4s）。三层都只在**用户真去用**的时候才现形，离线全绿。
+    # 套件含 90 个区县逐个反推 + 外省不误判 + 中文不许出现在域名里。
+    'verify_district_input.py',
+    # 2026-09-23 新增：新一轮清场（问题②）。
+    # 「完成一轮分析后换地点，工作流回到上一轮选铺的地方」——根因是 classify 返回
+    # 大量字段写成**无条件沿旧值** `state.get(...)`，旧候选/评分/选中下标跨轮残留。
+    # 套件钉三件：清场名单完整性（防漏清）、判据正反（防误清）、端到端换地点后
+    # 候选里不许残留旧区县（真机实测：换瓯海区却继续显示鹿城区的铺子）。
+    'verify_new_round.py',
 ]
 NET = ['test_vision_storefront.py', 'test_composite_intent.py',
        'test_expert_functioncalling.py']
@@ -83,6 +104,11 @@ def run(script, offline=False):
         encoding='utf-8', errors='replace', timeout=1800, env=env)
     out = (r.stdout or '') + '\n' + (r.stderr or '')
     # 三种失败计数写法都要认（各脚本历史写法不一）
+    # ⚠️ 坑：「共 N 项 FAIL M」（N=总项数、M=失败数）这种格式下，正则
+    #    `共\s*(\d+)\s*项\s*FAIL` 捕获的是 **N**，会把"共 73 项 FAIL 0"读成 73 个失败
+    #    ——2026-09-23 三个新套件因此被误报成红的（rc 明明是 0）。
+    #    所以**新套件结尾统一写 `FAILED = M`**；上面那个 pattern 保留兼容老脚本
+    #    （它们写的是「共 M 项 FAIL」，总项数即失败数，无歧义）。
     fails = 0
     for pat in (r'fails\s*=\s*(\d+)', r'FAILED\s*=\s*(\d+)', r'共\s*(\d+)\s*项\s*FAIL'):
         for m in re.finditer(pat, out):

@@ -31,25 +31,60 @@
   font-display: swap;
 }
 
+/* ------------------------------------------------------------
+   ⚠️⚠️ 双主题：必须与 sidebar.js 共用同一个开关（2026-09-23 修）
+   ------------------------------------------------------------
+   改前只有一套亮色变量，暗色下三类文字直接糊掉（策 2026-09-23 实机反馈）：
+     ① h1~h4 的 --zl-ink(#1e293b) 与 strong(#0f172a) —— 深字贴深底；
+     ② tbody 斑马纹 #f8fafc —— 白底；配 sidebar.js 的 --zl-card-val(#f2efe0)
+        米色数字 = 白底米字看不见；
+     ③ h3 的暗金左边框 #b8860b、blockquote 的浅青底 #e6f2f1 —— 暗色下也很脏。
+   本文件的旧写法是「写死亮色」，且全文件 **0 处 prefers-color-scheme**；
+   而 sidebar.js 那套自绘面板是「暗为默认 + html:not(.dark) 覆盖亮色」。
+   两套各判各的，于是同一个页面里两种主题并存。
+   现在统一到 sidebar.js 的判据（html.dark 由它 applyTheme() 挂到 <html>）：
+     :root         = 暗（默认，与 sidebar.js 一致）
+     html:not(.dark) = 亮
+   ⚠️ 变量名沿用 app.css 原有的 --zl-ink / --zl-brand / --zl-line，
+      但 --zl-brand 的语义在暗色下必须换成**亮青**，否则品牌青 #1d6f78
+      在深底上同样读不清（表头底 + 品牌强调都用它）。
+   ------------------------------------------------------------ */
 :root {
-  --zl-brand: #1d6f78;        /* 品牌青（替代原蓝，杜绝蓝竖线） */
-  --zl-brand-soft: #e6f2f1;   /* 浅青底 */
-  --zl-ink: #1e293b;          /* 深墨字 */
-  --zl-line: #e2e8f0;         /* 分割线 */
+  /* —— 暗（默认）：与 sidebar.js :root 同一套思路 —— */
+  --zl-brand: #4fb3bd;        /* 品牌青（暗色下提亮；#1d6f78 在深底上读不清） */
+  --zl-brand-soft: rgba(79,179,189,.12);  /* 浅青底 -> 暗色下的低透青（引用块） */
+  --zl-ink: #e9f0ee;          /* 深墨字 -> 暗色下换成亮字（sidebar.js --zl-btn-tx 同色系） */
+  --zl-line: rgba(229,201,138,.16);       /* 分割线 -> 金色低透（与侧栏 --zl-rail-bord 同） */
+  --zl-line-strong: #e5c98a;  /* h3 左边框：暗色下用亮金（原 #b8860b 暗金糊在深底里） */
+  --zl-th-bg: #1d6f78;        /* 表头底：暗色下仍用品牌青实底，白字对比度够 */
+  --zl-zebra: rgba(255,255,255,.04);      /* 斑马纹：白底 -> 微透白（禁止纯白） */
+  --zl-strong: #f4f2e6;       /* 加粗强调：与 sidebar.js --zl-wb-head-tx 同色 */
 }
 
-/* 标题：品牌蓝 + 左侧竖条，增强卡片层级感 */
+/* —— 亮：沿用改造前那一套值，一个都没动 —— */
+html:not(.dark) {
+  --zl-brand: #1d6f78;
+  --zl-brand-soft: #e6f2f1;
+  --zl-ink: #1e293b;
+  --zl-line: #e2e8f0;
+  --zl-line-strong: #b8860b;
+  --zl-th-bg: #1d6f78;
+  --zl-zebra: #f8fafc;
+  --zl-strong: #0f172a;
+}
+
+/* 标题：品牌色 + 左侧竖条，增强卡片层级感 */
 h1, h2, h3, h4 {
   color: var(--zl-ink);
   line-height: 1.35;
 }
 h3 {
-  border-left: 4px solid #b8860b;
+  border-left: 4px solid var(--zl-line-strong);
   padding-left: 10px;
   margin-top: 22px;
 }
 
-/* 引用/提示块：浅蓝底 + 圆角 */
+/* 引用/提示块：品牌浅底 + 圆角 */
 blockquote {
   background: var(--zl-brand-soft);
   border-left: 4px solid var(--zl-brand) !important;
@@ -58,7 +93,7 @@ blockquote {
   margin: 10px 0;
 }
 
-/* 表格（评分卡/对比表）：表头蓝底白字、斑马纹、圆角 */
+/* 表格（评分卡/对比表）：表头品牌底白字、斑马纹、圆角 */
 table {
   border-collapse: separate;
   border-spacing: 0;
@@ -67,7 +102,7 @@ table {
   width: 100%;
 }
 thead {
-  background: var(--zl-brand);
+  background: var(--zl-th-bg);
   color: #ffffff;
 }
 thead th {
@@ -79,7 +114,7 @@ th, td {
   padding: 6px 10px !important;
 }
 tbody tr:nth-child(even) td {
-  background: #f8fafc;
+  background: var(--zl-zebra);
 }
 
 /* 代码/价格高亮 */
@@ -89,5 +124,6 @@ pre, code {
 
 /* 会话中心面板里的强调行 */
 strong {
-  color: #0f172a;
+  color: var(--zl-strong);
 }
+
