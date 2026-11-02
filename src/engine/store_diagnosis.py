@@ -94,7 +94,7 @@ def brand_benchmark(brand, category=None):
 def diagnose_existing_store(category, monthly_revenue=None, monthly_rent=0,
                             area_m2=30, city='宁波', staff=None, investment=None,
                             brand=None, scenario='中性', price=None,
-                            daily_orders=None):
+                            daily_orders=None, takeout_ratio=None):
     """已开店经营诊断：拆成本、算毛利、算安全边际、跟品牌公开基准对标。
 
     参数
@@ -135,7 +135,8 @@ def diagnose_existing_store(category, monthly_revenue=None, monthly_rent=0,
     prof = estimate_profit(category, area_m2, city, monthly_rent,
                            investment=investment, staff=staff,
                            sales_est=monthly_revenue, brand=brand,
-                           price=price, scenario=scenario)
+                           price=price, scenario=scenario,
+                           takeout_ratio=takeout_ratio)
 
     # ---- 变动成本率 v：跟着流水一起变的那部分（物料/损耗/外卖抽成/场地附加/税）----
     v = (prof['物料占比'] + prof['损耗率']
@@ -160,7 +161,8 @@ def diagnose_existing_store(category, monthly_revenue=None, monthly_rent=0,
     try:
         from engine.scoring import solve_rent_limits
         rent_limits = solve_rent_limits(category, area_m2, city, prof['前期投入'],
-                                        prof['人数'], monthly_revenue, brand, price=price)
+                                        prof['人数'], monthly_revenue, brand, price=price,
+                                        takeout_ratio=takeout_ratio)
     except Exception:  # 纯本地二分，理论上不会抛；真抛了不能连带拖垮诊断
         rent_limits = None
 

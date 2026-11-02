@@ -136,7 +136,7 @@ custom_css = "/public/app.css?v=19"
 
 # Specify a JavaScript file that can be used to customize the user interface.
 # The JavaScript file can be served from the public directory.
-custom_js = "/public/sidebar.js?v=31"
+custom_js = "/public/sidebar.js?v=36"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"

@@ -82,4 +82,45 @@ DISTRICT_TO_CITY_SHORT = {
 # 当前实测为空 —— 浙江 90 个区县去掉后缀后无重名。
 AMBIGUOUS_SHORT = frozenset([])
 
-__all__ = ["DISTRICT_TO_CITY", "DISTRICT_TO_CITY_SHORT", "AMBIGUOUS_SHORT"]
+
+def district_key(name):
+    """区县名归一化：去掉 区/县/市 后缀，用于**跨来源比对**。
+
+    ⚠️ 为什么需要它（2026-09-25）：同一个区县在三个地方写法不同 ——
+       用户口语 `'海曙'`、`zj_districts` 全称 `'海曙区'`、
+       58 的 loc 结构 `'…-宁波市-海曙区-…'`、本地 POI 库 `adname='海曙区'`。
+       直接字符串比较会把 `'海曙'` 与 `'海曙区'` 判成两个区（**误杀**）。
+       统一去后缀后 `'海曙' == '海曙区'`、`'义乌' == '义乌市'`。
+
+    只去**一个**尾字，且要求剩余长度 ≥ 2 ——
+    '市' 单独出现（如脏数据）不会被削成空串。
+    """
+    s = (name or '').strip()
+    if len(s) >= 3 and s[-1] in '区县市':
+        s = s[:-1]
+    return s
+
+
+# 归一化后的区县键集合：判定"这个词到底是不是区县"用它（不是区县词就退回旧语义）
+DISTRICT_KEYS = frozenset(district_key(d) for d in DISTRICT_TO_CITY)
+
+# 归一化键 -> 规范全称（'海曙' -> '海曙区'、'义乌' -> '义乌市'）
+# ⚠️ 由 DISTRICT_TO_CITY **派生**，不手写；键唯一性由 AMBIGUOUS_SHORT 为空这条保证
+_FULL_BY_KEY = {district_key(d): d for d in DISTRICT_TO_CITY}
+
+
+def district_full(name):
+    """区县名 -> **规范全称**（'海曙' → '海曙区'、'义乌' → '义乌市'）。
+
+    ⚠️ 为什么要统一成全称（2026-09-25）：同一个区在项目里有四种写法 ——
+       用户口语 `'海曙'`、表里的全称 `'海曙区'`、58 的 loc 结构 `'…-海曙区-…'`、
+       本地 POI 的 `adname`。**识别入口 `extract_district` 对短名入参返回短名**，
+       于是同一条流水线里会同时冒出 `'海曙'` 和 `'海曙区'`，
+       落进日志/卡片就是"同一个区两种写法" —— 本项目第一高发错的温床。
+       认不出（不是浙江区县，如 '下沙'/'文三路'）就**原样返回**，不猜。
+    """
+    k = district_key(name)
+    return _FULL_BY_KEY.get(k, name)
+
+__all__ = ["DISTRICT_TO_CITY", "DISTRICT_TO_CITY_SHORT", "AMBIGUOUS_SHORT",
+           "district_key", "DISTRICT_KEYS", "district_full"]

@@ -282,7 +282,8 @@ def derive_staff(daily_orders, per_capita) -> int:
 
 
 def estimate_profit(category, area_m2, city, monthly_rent, investment=None, staff=None,
-                    price=None, daily_sales=None, sales_est=None, brand=None, scenario=None):
+                    price=None, daily_sales=None, sales_est=None, brand=None, scenario=None,
+                    biz=None, takeout_ratio=None):
     """综合盈利测算（2026-09-14 三档情景版）:
     月流水  = 精细化估算(sales_est) 或 客单价×日单量×30
     月物料  = 月流水 × 品类物料占比
@@ -313,7 +314,15 @@ def estimate_profit(category, area_m2, city, monthly_rent, investment=None, staf
     from config import get_profile
     from engine.brands import get_franchise_info
     prof = get_profile(category)
-    sc = get_scenario(scenario)
+    sc = dict(get_scenario(scenario))
+    # ⚠️ #11 业态判定（2026-09-26，策拍板"允许影响数字"）：
+    #    **只覆盖「场地附加费率」这一个参数** —— 它正是"商场扣点/物业费/推广费"，
+    #    是业态的直接函数；而税负率/损耗率/人均日单量跟业态无关（那是"情景"的语义）。
+    #    若一并改掉那三个，"判出商场店"就会连带动跟业态无关的假设，影响面失控。
+    # ⚠️ `dict(...)` 这句是**必须的**：`get_scenario()` 返回的是全局 `SCENARIOS`
+    #    里那个 dict **本身**，直接改它会**永久污染全局情景档**（后续所有测算都跟着变）。
+    if biz and biz.get('场地附加费率') is not None:
+        sc['场地附加费率'] = float(biz['场地附加费率'])
     price = price or prof['price']
     if sales_est is not None:
         monthly_sales = sales_est
@@ -324,7 +333,12 @@ def estimate_profit(category, area_m2, city, monthly_rent, investment=None, staf
 
     material_ratio = get_material_ratio(category, brand=brand)
     market_wage = get_market_wage(city)
-    delivery_ratio = get_delivery_ratio(category)
+    # ⚠️ #10 第二版（2026-09-26）：外卖占比可**显式覆盖**，供敏感性滑块用。
+    #    参数名是 `takeout_ratio` 而不是 `delivery_ratio` —— 后者是本函数的**局部变量名**，
+    #    同名参数会把它遮蔽掉，读代码的人会以为用的是品类默认值。
+    #    默认为 None ⇒ 走品类默认（既有行为**一字不变**）。
+    delivery_ratio = (float(takeout_ratio) if takeout_ratio is not None
+                      else get_delivery_ratio(category))
 
     # 人数取"用户指定"与"产能下限"的较大值：369 单/天不可能 2 个人做完，
     # 按用户报的 2 人算成本，等于把一部分人工藏起来当净利。
@@ -388,6 +402,11 @@ def estimate_profit(category, area_m2, city, monthly_rent, investment=None, staf
 
     return {
         '品类': category,
+        # ⚠️ 2026-09-26 加：把入参**原样带出来**，供 #10 敏感性阶梯复用同一套入参。
+        #    面积直接影响「月水电 = 面积 × 强度 × 当地价」，敏感性重算时必须用
+        #    **同一个面积**，否则基准档与静态分析对不上（用户会看到两套账）。
+        #    纯增量：不影响任何既有计算。
+        '面积': area_m2,
         '情景': scenario or DEFAULT_SCENARIO,
         '假设': sc,
         '假设口径': '假设区间，非实测数据',
@@ -407,6 +426,14 @@ def estimate_profit(category, area_m2, city, monthly_rent, investment=None, staf
         '外卖抽成率': COMMISSION_RATE,
         '月外卖抽成': round(delivery_cost),
         '场地附加费率': sc['场地附加费率'],
+        # #11 业态判定（2026-09-26）：**必须出声** ——
+        # 用户得能分辨这个费率是"业态判出来的"还是"情景档默认的"，
+        # 否则会把 LLM 的猜测当成实测口径（"不静默"红线的直接要求）。
+        '业态': (biz or {}).get('业态') or '',
+        '场地附加费率来源': (
+            f"业态判定（{(biz or {}).get('业态')}·{(biz or {}).get('判定来源') or '?'}）"
+            if (biz or {}).get('场地附加费率') is not None else '情景档默认'),
+        '业态依据': (biz or {}).get('依据') or '',
         '月场地附加费': round(venue_cost),
         '税负率': sc['税负率'],
         '月税': round(tax_cost),

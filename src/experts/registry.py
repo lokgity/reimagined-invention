@@ -352,6 +352,16 @@ def compose_system_prompt(expert_id: str, kb_text: str = '',
     if kb_text:
         parts += ['', '【知识库检索结果（本地知识库，可参考；用到时自然融入，不要照抄条目编号）】',
                   kb_text]
+    # 外部数据定界声明（2026-09-28，prompt injection 防线）。
+    # ⚠️ 加在这里而不是各专家 persona 里：本函数是**唯一的** system prompt 出口
+    #    （9 位专家 + 4 个节点全走它），加在这里才是"一处生效"；
+    #    抄进 persona 就变成"9 处表面"（本项目第一高发错）。
+    #    定界符常量与 `agent/external_text.py` 同源，改一处必须两处一起改。
+    try:
+        from agent.external_text import BOUNDARY_CLAUSE
+        parts.append(BOUNDARY_CLAUSE)
+    except Exception:
+        pass
     return '\n'.join(parts)
 
 

@@ -54,8 +54,12 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# 区县身份：归一化与"是不是区县词"的判据都取自 `zj_districts`（唯一事实源，不另造表）
+from agent.zj_districts import DISTRICT_KEYS, district_key, district_full  # noqa: E402
 
 # 城市代码映射（58 用拼音短码）
 CITY_CODES = {
@@ -107,6 +111,38 @@ _CARDS_JS = """els => els.slice(0, %d).map(e => {
    })""" % _MAX_CARDS_PER_PAGE
 
 
+# 58 卡片里**平台自己标的业态/铺型**。实测原样（2026-09-26 从抓下来的卡片里翻出来）：
+#   `安选 临街门面 临街 可餐饮 可明火` / `写字楼配套` /
+#   `安选 免租1个月 社区底商 临街 可明火` / `安选 档口摊位 临街 可餐饮 可明火`
+#
+# ⚠️ 三件事必须说清，别误用：
+#   ① 这是 **58 的标注**（中介自己填的），**不是真值** —— 只能当"对照"，
+#      不能当 ground truth；算出来的是**一致率**，不是"准确率"。
+#   ② 咱原来的 `_parse_card` **只取 价格/面积/标题/位置**，这一段**一直被丢掉**
+#      （它不含 `元/月`、也没有 `-`，所以既进不了 title 也进不了 loc）——
+#      等于白抓了一批带标签的数据。现在补上。
+#   ③ 用途只有一个：**评估 #11 业态判定的对照样本**（算一致率 + 混淆矩阵）。
+#      它**不参与任何测算**，也不进候选卡片。
+#
+# 按长度降序 —— 先认 `社区底商` 再认 `底商`，否则短词会先把长词吃掉。
+_PLATFORM_BIZ_KW = sorted((
+    '临街门面', '商业街店铺', '社区底商', '住宅底商', '写字楼配套', '档口摊位',
+    '沿街商铺', '购物中心', '商业综合体', '美食城档口', '超市外租区',
+    '商业街', '底商',
+), key=len, reverse=True)
+
+
+def _platform_biz_of(lines):
+    """从卡片行里挑出**平台标的业态**；找不到返回 ''（不猜）。"""
+    for l in lines:
+        if len(l) > 40 or any(k in l for k in ['元/月', '万/月', '元/㎡', '㎡', '建筑面积']):
+            continue
+        for kw in _PLATFORM_BIZ_KW:
+            if kw in l:
+                return kw
+    return ''
+
+
 def _parse_card(text):
     """解析单个卡片的文本, 提取结构化字段。解析不出价格返回 None。"""
     lines = [l.strip() for l in text.split('\n') if l.strip()]
@@ -154,6 +190,8 @@ def _parse_card(text):
     return {
         'title': title, 'loc': loc,
         'price': price, 'price_per': price_per, 'area': area,
+        # 平台自己标的业态（见 `_PLATFORM_BIZ_KW` 的注释：**只用于评估对照**，不进测算）
+        '平台业态': _platform_biz_of(lines),
     }
 
 
@@ -216,6 +254,123 @@ def _merge_area(item):
     else:
         item['area_src'] = None
     return item
+
+
+# ---------------------------------------------------------------
+# 区县归属判定（2026-09-25 新增，#8 地点解析）
+# ---------------------------------------------------------------
+# 58 的 loc 实测有两种形态（宁波·全市首页 148 张卡片）：
+#   ① 结构化：`庄市·萌恒大厦-宁波市-镇海区-同心路888号…`
+#              `西门·恒茂商业广场-宁波市-海曙区-广安路224号029幢`          —— 16/148
+#   ② 简写：  `首南·天健巷127号` / `集士港·布政西路225号` / `长丰·宁南北路363号`
+#              首段是**商圈/街道名**（首南→鄞州区、集士港→海曙区、长丰→鄞州区）
+#   ③ 一个区县名都没有（loc 与 title 都干净）                              —— 91/148
+#
+# 改造前是 `if area_filter and area_filter not in full`（纯字符串包含），两个方向都错：
+#   **误杀**：`loc='轻纺城·塘西中路'` 真在海曙，只因没写"海曙"就被丢；
+#   **误收**：全市页里 9 条江北 + 8 条鄞州 + 3 条镇海 + 3 条北仑 + 2 条奉化，
+#            标题里恰好写着"海曙"就会被当海曙留下。
+_LOC_DISTRICT_PAT = re.compile(
+    r'-[\u4e00-\u9fa5]{2,4}市-([\u4e00-\u9fa5]{2,8}?(?:区|县|市))-')
+
+_BIZ_DISTRICT_CACHE = {}      # (商圈, 城市) -> 区县；进程内缓存，查本地 SQLite 不打外网
+_EXTRACT_DISTRICT = None
+
+# 商圈 -> 区县 的最小样本门槛。
+# ⚠️ 为什么要门槛（2026-09-25 实测）：本地 POI 库是 4.4 万条的**抽样**，
+#    不是全量 —— 样本过薄时会给出**假阳性**：
+#      `'中河'`（宁波中河街道，实际在鄞州区）在库里只有 **2 条**，全是北仑区的
+#      "中河路(地铁站)" ⇒ 判成北仑区（错）；
+#    而判对的那些样本都厚：首南 7 / 集士港 7 / 长丰 7 / 庄市 8 / 孔浦 / 东部新城。
+#    按"宁少不掺沙"，这里**宁可判不出**（返回 None，该条落进"无法判定"象限被丢），
+#    也不给一个错的区县。代价：极少数真·小众商圈会判不出（如轻纺城只有 1 条）。
+_BIZ_MIN_N = 3
+
+
+def _extract_district(text):
+    """延迟取 `agent_graph.extract_district`（区县名的**唯一识别入口**，不另写一套）。
+
+    ⚠️ 必须延迟导入：`agent_graph` **顶层**就 `from agent.rental58 import fetch_shops`，
+       这里若顶层反向 import 会成环。取到一次即缓存。
+    """
+    global _EXTRACT_DISTRICT
+    if _EXTRACT_DISTRICT is None:
+        from agent.agent_graph import extract_district
+        _EXTRACT_DISTRICT = extract_district
+    return _EXTRACT_DISTRICT(text)
+
+
+def _biz_district(biz, city_cn):
+    """商圈/街道名 -> 区县（查本地 POI 库，**按城市限定**）。
+
+    ⚠️ 必须限定城市：实测不限定会**跨市串味** ——
+       '中河' 串到衢州柯城区（宁波中河街道 vs 衢州"中河沿"）、
+       '轻纺城' 串到湖州长兴县 / 绍兴越城区（宁波轻纺城在**海曙区石碶**）。
+       限定 `city='宁波市'` 后：首南→鄞州区、集士港→海曙区、庄市→镇海区、孔浦→江北区 ✓
+    ⚠️ 还要过 `_BIZ_MIN_N` 样本门槛（见该常量注释）：样本太薄宁可判不出，不给假阳性。
+    """
+    if not biz or len(biz) < 2:
+        return None
+    key = (biz, city_cn)
+    if key in _BIZ_DISTRICT_CACHE:
+        return _BIZ_DISTRICT_CACHE[key]
+    out = None
+    try:
+        from data.query import get_conn
+        conn = get_conn()
+        rows = conn.execute(
+            'SELECT adname, COUNT(*) c FROM poi WHERE city = ? AND name LIKE ? '
+            'GROUP BY adname HAVING c >= ? ORDER BY c DESC LIMIT 1',
+            (city_cn, f'%{biz}%', _BIZ_MIN_N)).fetchall()
+        # 不再 close()：连接由 data.query.get_conn() 按线程缓存复用（2026-09-27 P0-3）
+        if rows and rows[0][0]:
+            out = rows[0][0]
+    except Exception:
+        out = None
+    _BIZ_DISTRICT_CACHE[key] = out
+    return out
+
+
+def _item_district(item, city_cn):
+    """58 条目的区县归属 —— 三级判定，判不出返回 `''`（**不猜**）。
+
+    ① `loc` 的结构化 `-{市}-{区}-` 段 —— 平台自己给的，最权威
+    ② `loc` 首段的商圈/街道名 → 查本地 POI（限该城市）
+    ③ `loc` / `title` 里出现的区县名
+    三样都落空 ⇒ `''`：调用方必须按"判不出"处理，**不许**当成都算或都算对。
+
+    返回值**统一成规范全称**（'海曙' → '海曙区'）：`extract_district` 对短名入参
+    返回短名，不归一化就会出现"同一个区两种写法"（见 `zj_districts.district_full`）。
+    """
+    loc = item.get('loc') or ''
+    m = _LOC_DISTRICT_PAT.search(loc)
+    if m:
+        return district_full(m.group(1))
+    if loc:
+        biz = re.split(r'[·\-—]', loc)[0].strip()
+        d = _biz_district(biz, city_cn)
+        if d:
+            return district_full(d)
+    return district_full(_extract_district(loc)
+                         or _extract_district(item.get('title') or '') or '')
+
+
+def _area_filter_ok(item, area_filter):
+    """区域过滤判定（替换原来的纯字符串包含）。`item['district']` 需先由 `_item_district` 填好。
+
+    - `area_filter` 本身是**区县词**（'海曙'/'海曙区'/'义乌'）⇒ 按**区县身份**比对；
+      判不出区县的条目**一律不要** —— 宁少不掺沙，不拿"可能在"充数。
+    - 不是区县词（'下沙'/'文三路' 这类商圈/路名）⇒ **退回原包含匹配**，
+      不为这些词引入新语义，既有行为逐字不变。
+    """
+    want = area_filter or ''
+    if not want:
+        return True
+    if district_key(want) in DISTRICT_KEYS:
+        got = item.get('district') or ''
+        return bool(got) and district_key(got) == district_key(want)
+    full = (item.get('loc') or '') + (item.get('title') or '')
+    return want in full
 
 
 # ---------------------------------------------------------------
@@ -645,6 +800,25 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
     # 验证码页），**翻多少页都是同一个验证码页** —— 白等，还白占并发额度（总并发上限 4 路）。
     # 而移动端 `m.58.com/{code}/shangpu/pn2/`、`pn3/` 实测有效（内容与首页不同）。
     # 所以 `pages` 现在的语义是「**移动端**翻到第几页」，PC 只留首页做"站点策略回摆"的探测。
+    # ⚠️ 顺序即优先级：条目按 URL 顺序累积、攒够 limit 就停
+    #    （`if len(items) >= limit: break`）。所以**关键词页必须排在最前**。
+    #    2026-09-26 实测踩到：PC 首页原本在第 1 位，某轮站点突然放行、它一次吃掉
+    #    40 个名额，而 PC 条目的 loc 大多**不带区名**（判不出归属 ⇒ 全被丢弃），
+    #    关键词页只剩 20 个名额 —— 极端情况下 PC 独占名额，候选直接归零。
+    #    PC 首页本来只是"站点策略回摆的探测"，产出为 0 是常态、产出非 0 反而污染候选池。
+    area_kw = str(area_filter or '').strip()
+    # ⚠️ 这个条件**故意不写成** `if area_filter:` —— 下面 fetch 循环里的区域过滤也写作
+    #    `if area_filter`，而门禁 verify_place_first §13 是按**字面顺序**校验
+    #    「deal 标记必须早于区域过滤」的（`rb.find(...) < rb.find('if area_filter')`）。
+    #    这里多一个同名条件会让那把尺子量到错的位置（2026-09-25 踩到：误报 FAIL）。
+    if area_kw:
+        # ⚠️ 2026-09-25（#8）：**在源头按区县/商圈检索**，而不是抓完一大把再筛。
+        #    实测（宁波·海曙）：
+        #      全市首页 148 张 → 只能判定 15 条属于海曙；
+        #      `m.58.com/nb/shangpu/?key=海曙` 89 张 → 能判定 58 条 —— **召回 3.9 倍**，
+        #      且 89 张里只有 1 张落在别的城市（西湖区），**没有跨区误收**；
+        #      对照全市页混进 9 江北 + 8 鄞州 + 3 镇海 + 3 北仑 + 2 奉化。
+        urls.append(f'https://m.58.com/{code}/shangpu/?key={quote(area_kw)}')
     if pages and pages >= 1:
         urls.append(f'https://{code}.58.com/shangpu/')
     if mobile:
@@ -679,6 +853,9 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
         meta['page_errors'] = page_errors
 
     items, seen = [], set()
+    n_dropped = 0          # 被区域过滤丢掉的条数
+    n_dropped_nodist = 0   # 其中因为"标题/位置都没写区县、判不出归属"而丢的
+    city_cn = f'{city}市'
     for url in urls:
         cards = cards_by_url.get(url) or []
         if meta is not None:
@@ -694,8 +871,15 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
             full = (item['loc'] or '') + (item['title'] or '')
             # 房源性质（出租/转让）—— 不过滤，只标注；用户明确要算转让铺
             item['deal'] = _deal_type(full)
-            # 区域过滤: loc(如"滨江-四桥南") 或 title 需包含区域词
-            if area_filter and area_filter not in full:
+            # 区县归属（三级判定，判不出为 ''）——**只在真要做区域过滤时算**：
+            # 全城查询没有消费方，算了等于往记录里塞一个未经验证的区县（违反"不猜"），
+            # 还要为每个商圈多查一次本地库。
+            item['district'] = _item_district(item, city_cn) if area_filter else ''
+            # 区域过滤: 区县词按**区县身份**比对（不再靠字符串包含，详见 _area_filter_ok）
+            if area_filter and not _area_filter_ok(item, area_filter):
+                n_dropped += 1
+                if not item['district']:
+                    n_dropped_nodist += 1
                 continue
             if not item.get('title'):
                 continue
@@ -728,8 +912,13 @@ def fetch_shops(city, limit=60, timeout=25, area_filter=None, pages=1, mobile=Fa
         meta['ok'] = bool(got_any)
         meta['deduped'] = len(items)
         meta['elapsed_s'] = round(time.monotonic() - t_start, 1)
+        # 区域过滤的账本（**不静默**）：丢了多少、其中多少是"判不出区县"丢的
+        meta['district_scope'] = area_filter or ''
+        meta['district_dropped'] = n_dropped
+        meta['district_unknown'] = n_dropped_nodist
         if not items and got_any:
-            meta['reason'] = '抓取成功但无匹配条目（区域关键词可能过窄）'
+            meta['reason'] = ('抓取成功但无匹配条目（区域关键词可能过窄，'
+                              '或该区县的挂牌都只在标题写了商圈、判不出归属）')
         elif not got_any:
             errors = meta.get('page_errors') or []
             if any('HTTP 403' in e or 'HTTP 429' in e or '验证/反爬' in e

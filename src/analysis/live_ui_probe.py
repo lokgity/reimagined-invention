@@ -910,6 +910,80 @@ def main():
                               json.dumps(w2, ensure_ascii=False)[:130])
                         pg.screenshot(path=str(SHOTS / '12_luckin_invest_note.png'))
 
+        # ---- §20 #10 敏感性滑块 + #11 业态上屏（2026-09-26）--------------------
+        # ⚠️ 为什么必须走实机：滑块是 `<input type=range>` 的动态 DOM。
+        #    静态断言只能证明"源码里写了 `renderSensitivity`"，**证明不了它在屏幕上
+        #    出来、更证明不了拖动真的换档**。本项目已有先例：卡片的 `.zl-tag` 探针
+        #    就是因为只看源码，漏掉了"实际没渲染出来"。
+        # ⚠️ 走 `demo_milktea`（一句话快速演示）而不是自己拼流程：
+        #    它已经在侧栏里、且能一键落到分析面板，比手搓多轮输入稳。
+        p('')
+        p('=== §20 敏感性滑块（租金/日单量/外卖占比）+ 业态上屏（实机）===')
+        # ⚠️ 独立自启动，不依赖 §16b 的残留会话状态 —— 否则 §16b 一 flaky
+        #    （58 凌晨反爬更严，实测会随机失败），§20 跟着全 FAIL，且误报成"功能坏了"。
+        #    `demo_milktea` 是一句话快速演示（已在侧栏、一键落分析面板），
+        #    用 `sendCmd` 等价物点它；58 失败会自动重试，最多等到 90s。
+        pg.evaluate("(() => { var b=document.querySelector('[data-cmd=\"demo_milktea\"]');"
+                    " if (b) b.click(); })()")
+        n_sens = 0
+        for _ in range(45):
+            pg.wait_for_timeout(2000)
+            n_sens = pg.evaluate("document.querySelectorAll('.sens-range').length")
+            if n_sens >= 3:
+                break
+        info('滑块数', str(n_sens))
+        # ⚠️ demo_milktea 依赖 58 抓取（flaky）：抓不到就不出分析、也就没有滑块。
+        #    此时**如实标注"58 侧失败，本节无法验证"**，而不是当成"滑块功能坏了"。
+        if n_sens < 3:
+            check('分析面板出现 3 个敏感性滑块（租金/日单量/外卖占比）', False,
+                  '58 侧失败/超时（demo 依赖实时抓取）—— 本节无法验证，别误读成滑块坏了')
+        else:
+            check('分析面板出现 3 个敏感性滑块（租金/日单量/外卖占比）',
+                  n_sens >= 3, str(n_sens))
+
+            biz_txt = pg.evaluate(
+                "(() => { var e=document.querySelector('#zl-right .zr-note');"
+                " return e ? (e.innerText||'') : ''; })()")
+            info('业态行', str(biz_txt)[:160])
+            check('分析面板有「铺位业态」这一行（#11 上屏）',
+                  '铺位业态' in (biz_txt or ''), str(biz_txt)[:120])
+            # ⚠️ 判据改成：**不能出现含糊的裸「缓存」字样**（除非后面跟了"原判定"）。
+            #    2026-09-26 抓到：旧代码缓存命中时只写「缓存」，用户分不出平台还是 LLM。
+            check('业态行写明了判定来源（平台标注 / LLM / 缓存（原判定…））—— 用户有权知道这笔费率从哪来',
+                  ('平台标注' in (biz_txt or '')) or ('LLM' in (biz_txt or ''))
+                  or ('缓存（' in (biz_txt or '')),
+                  str(biz_txt)[:120])
+
+            # ★ 拖动真的换档 —— 证明交互生效，不只是"画了个控件"
+            # ⚠️ 不能无脑 `-2`：档位本来就在最低端时减完还是最低，会误报"没变化"。
+            cur_before = pg.evaluate(
+                "(() => { var e=document.querySelector('[data-sens=\"租金\"] .sens-cur');"
+                " return e ? e.innerText : ''; })()")
+            cur_after = pg.evaluate("""(() => {
+              var box = document.querySelector('[data-sens="租金"]');
+              if (!box) return null;
+              var r = box.querySelector('input[type=range]');
+              if (!r) return null;
+              var v = +r.value;
+              r.value = String(v >= 3 ? v - 2 : v + 2);
+              r.dispatchEvent(new Event('input', {bubbles: true}));
+              var c = box.querySelector('.sens-cur');
+              return c ? c.innerText : null;
+            })()""")
+            info('拖动前/后 当前档', f'{cur_before} -> {cur_after}')
+            check('拖动滑块后当前档显示**真的变了**（交互生效）',
+                  bool(cur_after) and cur_after != cur_before,
+                  f'{cur_before} -> {cur_after}')
+            # 该档的结论必须含引擎指标 —— 说明显示的是引擎算好的那一档，不是死文案
+            net_txt = pg.evaluate(
+                "(() => { var e=document.querySelector('[data-sens=\"租金\"] .sens-out');"
+                " return e ? (e.innerText||'') : ''; })()")
+            info('拖动后该档结论', str(net_txt)[:120])
+            check('该档结论含「月净利」与「可签租金上限」（数字来自引擎那一档）',
+                  ('月净利' in (net_txt or '')) and ('可签租金上限' in (net_txt or '')),
+                  str(net_txt)[:120])
+            pg.screenshot(path=str(SHOTS / '20_sensitivity.png'))
+
         # ---- §17 专家展示 + 快速演示（2026-09-18 欧文两条诉求）------------------
         # ① 快速演示加**真实反面教材**（低分/一票否决的真实点位）
         # ② 专家卡与快捷条里，「定位」必须压过「拟人名」（改前是反的）

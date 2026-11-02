@@ -399,17 +399,49 @@ def write_last_sim(sim: dict, result: dict, map_b64: str = '', board: dict = Non
             'lng': result.get('lng'),
             'lat': result.get('lat'),
             '半径m': _meta.get('半径m'),
-            'map_b64': map_b64 or '',
+            # ⚠️ 2026-09-23：地图**不再内联 base64**（下方统一拆成独立 PNG 文件）。
+            #    这一份会进 last_sim.json，而它被前端 sidebar.js 每 2.5s 轮询重拉
+            #    （实测 60 秒内被拉 9 次）；内联 564KB base64（解码后 413KB PNG）时
+            #    每次都全量重传 ⇒ 首屏因此多传 2.4MB，主 bundle 被挤到 58 秒才下完。
+            #    两份 payload 的地图字段**必须分别处理**，见下方写盘处注释。
+            'map_b64': '',
+            'map_url': '',
             'board': board or {},
             'sim': sim or {},
         }
         (ROOT / 'public').mkdir(parents=True, exist_ok=True)
-        # 「最近一次」快照（左栏按钮的默认页）—— 与下面按 id 存的那份是同一内容
+
+        # ---- 地图：拆成独立 PNG，payload 只留 URL（2026-09-23） ----
+        # 为什么必须拆：这一份进 last_sim.json，前端每 2.5s 轮询重拉它。
+        #   实测（60 秒窗口）：last_sim.json 被拉 9 次，内联地图时每次全量 270KB(gzip)
+        #   ⇒ 单这一项就占首屏总流量的 61%，主 bundle 抢不到带宽、58 秒才下完。
+        #   拆出后 json 从 582KB → 18KB，图片只下一次且能被浏览器正常缓存。
+        # ⚠️ URL **必须带版本号**：last_sim_map.png 是固定文件名，不带版本时浏览器
+        #    会缓存旧图 ⇒ 跑完新分析看到旧地图。这正是当初"内联 + no-store"想绕开的坑，
+        #    拆文件后必须靠版本号解决，不能靠禁止缓存。
+        if map_b64:
+            try:
+                _raw = map_b64.split(',', 1)[1] if map_b64.startswith('data:') else map_b64
+                (ROOT / 'public' / 'last_sim_map.png').write_bytes(base64.b64decode(_raw))
+                _ver = result.get('analysis_id') or time.strftime('%H%M%S')
+                payload['map_url'] = '/public/last_sim_map.png?v=%s' % _ver
+            except Exception as e:                                # noqa: BLE001
+                print('[last_sim] 地图拆分失败（该次快照将不显示地图）:', e)
+                payload['map_url'] = ''
+
+        # 「最近一次」快照（左栏按钮的默认页）
         LAST_SIM_FILE.write_text(json.dumps(payload, ensure_ascii=False), encoding='utf-8')
         # 按 analysis_id 再存一份，供"挑哪一次"的卡片页使用
+        # ⚠️ 归档那份**保留 base64、清掉 map_url**，与上面刻意不同：
+        #    · 归档不在首屏路径（只有打开"历史看板"才读），体积不是问题；
+        #    · 若让它也指向共享的 last_sim_map.png，回放历史时会显示**最新那张图** ——
+        #      那是改写历史（红线 3），必须避免。
         try:
             from agent.analysis_store import save_board
-            if not save_board(result.get('analysis_id'), payload):
+            _arch = dict(payload)
+            _arch['map_b64'] = map_b64 or ''
+            _arch['map_url'] = ''
+            if not save_board(result.get('analysis_id'), _arch):
                 print('[sim_board] 未按 id 落盘（result 里没有 analysis_id）')
         except Exception as e:                                   # noqa: BLE001
             print('[sim_board] save error:', e)
@@ -424,7 +456,40 @@ def _last_assistant_msg(state: dict) -> str:
     return ''
 
 
-def maybe_push_input_form(state: dict):
+def _confirm_fields(state: dict, result: dict = None):
+    """构造"我理解的参数"确认卡的字段列表（2026-09-28 新增）。
+
+    ⚠️ 为什么必须做：五项参数全靠 LLM/规则从一句话里抽取，而商铺租金的报价习惯
+    极杂 —— 月租 / 年租 / 元/㎡/天 / 含不含物业费 / "8万"是流水还是租金。
+    **任何一项抽错，引擎都会确定性地算出一个错误结论**（不是随机噪声，是稳定地错）。
+    出结论前让用户核对一次，成本近零，挡住的却是最贵的一类错。
+
+    租金单位**单独标出来**（列为必须确认项）：它是本项目历史上真栽过的地方
+    （"单杯价当每单金额"差 1.7 倍；"3块一平一天"差上千倍）。
+    """
+    r = (result or {}).get('profit') or {}
+    fields = []
+
+    def _add(key, label, val, unit, note=''):
+        if val in (None, '', 0):
+            return
+        fields.append({'key': key, 'label': label, 'unit': unit,
+                       'placeholder': '', 'default': str(val), 'note': note})
+
+    _add('category', '品类', state.get('category'), '',
+         '决定成本结构与客单价口径')
+    _add('address', '位置', state.get('address'), '',
+         'Huff 引力模型的中心点')
+    _add('rent', '月租金', state.get('rent'), '元/月',
+         state.get('rent_note') or '⚠️ 必须核对：年租/单价（元/㎡/天）都按此列换算，换算错整份结论就错')
+    _add('area', '面积', state.get('area'), '㎡', '影响水电与出餐产能')
+    _add('brand', '品牌', state.get('brand'), '', '决定物料率与 uplift 残差')
+    _add('investment', '前期投入', state.get('investment'), '元', '回本周期 = 投入 / 月净利')
+    _add('staff', '运营人数', state.get('staff'), '人', '决定人工成本档')
+    return fields
+
+
+def maybe_push_input_form(state: dict, result: dict = None):
     """当 agent 正在等待用户输入结构化经营参数时，把录入表单数据写入工作台。
     仅在明确等待投入/人数或缺失信息时覆盖工作台（0 次 API）。"""
     try:
@@ -497,6 +562,16 @@ def maybe_push_input_form(state: dict):
                 elif '面积' in item:
                     fields.append({'key': 'area', 'label': '面积', 'unit': '㎡',
                                    'placeholder': '如 30', 'default': ''})
+        # ⚠️ 2026-09-28 新增：**出结论前的参数确认卡**。
+        #    判据是"分析已经跑完"（result 带 profit）—— 这时候用户看到的结论
+        #    依赖的每一个输入都必须能被核对。租金单位是重点（历史重灾区）。
+        elif result and (result.get('profit') or result.get('total') is not None):
+            _cf = _confirm_fields(state, result)
+            if _cf:
+                mode = 'confirm'
+                hint = ('核对一下我理解的参数 —— 数字对不上就回一句改，'
+                        '我重算；没问题回「确认」即可')
+                fields = _cf
         if fields:
             write_dashboard({
                 'kind': 'input', 'mode': mode, 'hint': hint,
@@ -505,6 +580,44 @@ def maybe_push_input_form(state: dict):
             })
     except Exception as e:
         print('[input-form] error:', e)
+
+
+def build_sensitivity(result: dict):
+    """#10 敏感性阶梯：由**静态分析同一套入参**派生出可拖动的情景。
+
+    ⚠️ 三个必须守住的点（2026-09-26）：
+      ① **入参必须取自静态分析本身**（`result['profit']` 里的 `月租金`/`月流水估算`/
+         `客单价`/`面积`/`人数`/`前期投入`/`情景`），不许自己另算一遍 ——
+         否则基准档与静态分析对不上，用户看到的是**两套账**。
+      ② 关键入参（月租/月流水/面积）缺任何一项就返回 None，**不猜不编** ——
+         宁可这一版不出滑块，也不出一个对不上的数。
+      ③ 本函数是**纯计算**（实测 0.12s，不发网络），所以可以放进
+         `build_analysis_dashboard` 这个被门禁对拍的纯函数里。
+
+    净利/天花板等数字**全部由引擎算**（`engine.sensitivity`），这里只做参数搬运。
+    """
+    p = result.get('profit') or {}
+    rent = p.get('月租金') or result.get('monthly_rent')
+    revenue = p.get('月流水估算')
+    area = p.get('面积')
+    if not rent or not revenue or not area:
+        return None
+    try:
+        from engine.sensitivity import sensitivity_ladder
+        return sensitivity_ladder(
+            result.get('category') or '',
+            rent, revenue,
+            price=p.get('客单价'),           # 只用于把流水折成"日单量"刻度
+            area_m2=area,
+            city=result.get('city') or '宁波',
+            investment=p.get('前期投入'),
+            staff=p.get('人数'),
+            brand=result.get('brand') or None,
+            scenario=p.get('情景') or '中性',
+        )
+    except Exception as e:                                       # noqa: BLE001
+        print('[sensitivity] 构造失败：%r' % (e,))
+        return None
 
 
 def build_analysis_dashboard(result: dict, map_b64: str = '') -> dict:
@@ -840,6 +953,19 @@ def build_analysis_dashboard(result: dict, map_b64: str = '') -> dict:
         'warnings': result.get('warnings', []),
         'map_b64': map_b64,
         'sim': sim,
+        # #10 敏感性阶梯（2026-09-26）：**可选加成** —— 拿不到入参就是 None，
+        # 前端不渲染滑块即可，绝不影响分析面板本身（主链路优先）。
+        'sensitivity': build_sensitivity(result),
+        # #11 业态判定（2026-09-26）：必须上屏 —— 用户得能分辨这笔账里的
+        # 「场地附加费率」是**业态判出来的**还是**情景档默认的**。
+        # ⚠️ 键名用 `biz_type` 而不是 `biz` —— 上面 `'biz'` 已经被"经营评分"占用了，
+        #    撞键会把经营评分覆盖掉（这类"同一个键两处含义"正是本项目高发错）。
+        'biz_type': {
+            '业态': p.get('业态') or '',
+            '来源': p.get('场地附加费率来源') or '',
+            '依据': p.get('业态依据') or '',
+            '费率': p.get('场地附加费率'),
+        },
     }
 
 
@@ -1825,6 +1951,28 @@ async def process_message(text: str):
     # 调用 LangGraph Agent（实时回传思考/工具事件）
     result = await run_agent(text, state, hooks={'on_event': on_event})
 
+    # ---- 专家视角自动判定（2026-09-25） ----
+    # 走到这里说明用户本轮**没有**发显式切换指令 —— `##专家:` / `/expert` 在上方
+    # 已 return，不会流到本行。所以这里可以放心按消息内容推荐视角。
+    # 双重防"抢用户手点"：① 显式切换走的是另一条 return 路径；
+    #                    ② 前端 CUR_LOCK（6 秒，sidebar.js:3271）保证刚点过的选择不被旧值回退。
+    # ⚠️ 判定只认高置信度关键词（见 agent_graph.infer_expert），命中不到就保持原视角。
+    try:
+        from agent.agent_graph import infer_expert
+        _sug = infer_expert(text)
+        if _sug and _sug != result.get('expert'):
+            _old = result.get('expert') or '默认顾问'
+            result['expert'] = _sug
+            # 写进「执行过程」面板：用户要知道"是谁自己切的"，不能悄悄换人格
+            try:
+                await on_event({'kind': 'tool', 'name': '专家视角自动切换',
+                                'output': f'{_old} → {_sug}'
+                                          f'（按本轮提问自动判定，可在专家面板手动改回）'})
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     # 更新状态
     cl.user_session.set('state', result)
 
@@ -1835,7 +1983,9 @@ async def process_message(text: str):
     await render_response(result)
 
     # 若 agent 正等待结构化输入（投入/人数/缺失信息）→ 推录入表单到工作台
-    maybe_push_input_form(result)
+    #   ⚠️ 2026-09-28：把 result 一并传入 —— 出结论后要推"参数确认卡"，
+    #     它需要读 state 里的 category/address/rent/area/brand/investment/staff。
+    maybe_push_input_form(result, result)
 
     # 会话状态更新后再刷新一次（含新增分析）
     await refresh_sidebar()

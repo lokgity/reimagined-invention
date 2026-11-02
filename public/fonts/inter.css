@@ -1,0 +1,51 @@
+/* ============================================================
+   Inter 400 / 500 / 700 —— latin 子集，本地自托管
+   ------------------------------------------------------------
+   来源：Google Fonts 的 Inter v20（2026-09-23 取），SIL OFL 1.1
+   文件：public/fonts/inter-latin.woff2（48,256 B ≈ 47 KB）
+
+   为什么本地化：
+     Chainlit 的页面模板把 https://fonts.googleapis.com 与 fonts.gstatic.com
+     硬编码在 <head> 里。国内访问这两个域名时通时不通，不可控；
+     不可达时 UI 字体会回落系统字体或让用户干等。本地化后走自己的服务器，结果确定。
+
+   为什么只有一个文件：
+     Google 对 Inter 输出的是**可变字体** —— 400/500/700 三个 @font-face
+     指向同一个 woff2（已实测三者 URL 逐字相同）⇒ 只需托管一份。
+
+   为什么只留 latin：
+     原 CSS 有 21 个分片（3 字重 × 7 语言区）。
+     本应用界面为中文 + 西文/数字，cyrillic / greek / vietnamese / latin-ext
+     全部用不到 ⇒ 只留 latin，CSS 从 7.4 KB 降到本文件，且浏览器按
+     unicode-range 只会真正下载这一个分片。
+   ⚠️ 未覆盖的字符（西里尔/希腊/越南语等）会回落系统字体 —— 刻意取舍。
+
+   改动入口：src/analysis/_patch_index_html.py（页面模板里的 <link> 指向本文件）
+   ============================================================ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/public/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/public/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/public/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

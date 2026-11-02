@@ -229,7 +229,11 @@ check('没有 analysis_id 就不落盘（对不上列表的快照没意义）',
 check('add_analysis **把 id 回写进 result**（UI 层才知道存哪一份）',
       "result['analysis_id'] = entry['id']" in STORE)
 check('UI 层按 analysis_id 落盘 + 写进 payload',
-      'save_board(result.get(\'analysis_id\'), payload)' in APP
+      # ⚠️ 2026-09-23：第二个参数从 `payload` 改成 `_arch`（归档份保留 base64 内联地图、
+      #   清掉 map_url —— 见 app_chainlit.write_last_sim 里"拆图"改造的注释）。
+      #   这里只认「save_board(result.get('analysis_id'), …)」这个**调用形态**，
+      #   不钉死第二个实参名，避免"改个变量名就假红"。
+      ('save_board(result.get(\'analysis_id\'),' in APP)
       and "'analysis_id': result.get('analysis_id', '')" in APP)
 check('sidebar.json 带 sim_list（复用 analyses.json，与对比分析同源）',
       "'sim_list': _sim_index()" in APP and 'def _sim_index(' in APP

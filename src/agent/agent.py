@@ -17,6 +17,7 @@ agent.py —— 选址领域逻辑层（无状态纯函数）
 import re
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -50,6 +51,79 @@ RENT_PATTERN = re.compile(
 )
 # "预算"有歧义：既可能是月租，也可能是装修/前期投入。上文出现这些词就不是月租
 _BUDGET_NOT_RENT = ('装修', '装潢', '投入', '加盟', '转让', '设备', '建店', '改造', '前期')
+
+# ---------------------------------------------------------------
+# 租金单价（元/㎡/天）识别 —— 2026-09-28 新增
+# ---------------------------------------------------------------
+# ⚠️ 为什么要单独一条：国内商铺挂牌**极常见**"3块一平一天"这种写法，
+#    而它是**每天每平米**的单价，不是月租。RENT_PATTERN 会把它读成
+#    "租金 3"（= 3 元/月），于是：
+#      · 租金承受力被算成满分（月租 3 元 vs 真实 3×45×30 = 4050 元）
+#      · 净利、一票否决、租金天花板全线失真 —— 而**界面看不出任何异常**
+#    这与本项目已栽过的"单杯价当每单金额"（差 1.7 倍）是同一类量纲错，
+#    倍数更大（这里能差 1000 倍以上）。
+#
+# 判据（两种语序都要认，中间只许夹**连接词**，绝不许夹数字/面积）：
+#   ① 正序："3块一平一天" "2.5元/㎡/天" "租金 3 元/平方米/日"
+#   ② 倒序："一平一天3块" "每天每平 3 元"
+#
+# ⚠️⚠️ 踩过的坑（2026-09-28，第一版就中招）：连接词写成 `[/每]?`
+#    会导致跨词吞噬 —— "3块一平一天，45平" 被读成单价 = 45（把后面的面积
+#    当成单价了，月租算成 60750，比真实值大 15 倍）。
+#    所以中缀必须是**纯词**（每/一/一个/块/元），且 `\s*` 收紧为 `\s{0,2}`。
+_RENT_UP_MID = r'(?:\s|每|一|一个|块|元|钱|/){0,4}'
+_RENT_UP_AREA = r'(?:㎡|平米|平方米|平方米|平|方)'
+_RENT_UP_TIME = r'(?:天|日|day)'
+_RENT_UNIT_PRICE_PATTERN = re.compile(
+    r'(\d+(?:\.\d+)?)\s*(?:元|块|钱)?' + _RENT_UP_MID +
+    _RENT_UP_AREA + _RENT_UP_MID + _RENT_UP_TIME,
+    re.IGNORECASE,
+)
+# 倒序式："一平一天 3 块" / "每天每平 3 元"
+_RENT_UNIT_PRICE_PATTERN_REV = re.compile(
+    _RENT_UP_AREA + _RENT_UP_MID + _RENT_UP_TIME + r'[^\d]{0,4}'
+    r'(\d+(?:\.\d+)?)\s*(?:元|块|钱)?',
+    re.IGNORECASE,
+)
+# 混序式："一天3块一平"（时间段在前，数字居中，面积在后）——数字后
+# 只接面积、时间在数字之前，所以单独给一条"数字 + 面积"的尾巴式。
+_RENT_UNIT_PRICE_PATTERN_MIX = re.compile(
+    _RENT_UP_TIME + _RENT_UP_MID
+    + r'(\d+(?:\.\d+)?)\s*(?:元|块|钱)?' + _RENT_UP_MID + _RENT_UP_AREA,
+    re.IGNORECASE,
+)
+# 单价换算成月租时的天数基准：商铺按 30 天/月（行业惯例）
+RENT_DAYS_PER_MONTH = 30
+
+
+def extract_rent_unit_price(text: str, area=None):
+    """识别"元/㎡/天"单价 → 返回 (元/㎡/天, 月租估算或 None)。
+
+    ⚠️ 月租估算**必须有面积**才给：没面积就算不出月租，此时只返回单价，
+    由调用方提示用户补面积 —— **不猜**（本项目的红线）。
+    返回 (None, None) 表示没识别到单价写法。
+    """
+    t = text or ''
+    m = _RENT_UNIT_PRICE_PATTERN.search(t)
+    if not m:
+        m = _RENT_UNIT_PRICE_PATTERN_REV.search(t)
+    if not m:
+        m = _RENT_UNIT_PRICE_PATTERN_MIX.search(t)
+    if not m:
+        return (None, None)
+    try:
+        unit = float(m.group(1))
+    except Exception:
+        return (None, None)
+    # 量级闸：单价 0.1~200 元/㎡/天 之外的多半不是单价（商铺常见 1~30）
+    if not (0.1 <= unit <= 200):
+        return (None, None)
+    if not area:
+        return (unit, None)
+    monthly = unit * float(area) * RENT_DAYS_PER_MONTH
+    if not (200 <= monthly <= 2_000_000):
+        return (unit, None)
+    return (unit, int(round(monthly)))
 # 本工具面向 10~100㎡ 小铺，月租到不了 5 万量级；"预算"超过这个数一律当投入
 _RENT_PLAUSIBLE_MAX = 50000
 
@@ -84,14 +158,25 @@ def _apply_unit(num_s, unit, extra=None) -> float:
     return num
 
 
-def extract_rent(text: str):
+def extract_rent(text: str, area=None):
     """提取月租(元)。
 
     坑（2026-09-14 实测踩到）："装修预算20万"曾被当成月租 20 万，覆盖掉用户先前给的
     月租 12000，把租金承受力打成 0 分、盈利测算与结论全错。所以"预算"这个触发词必须
     过闸：上文指向装修/投入就不算月租，金额超出小铺月租量级也不算。
     明确的"月租/租金/房租"无条件采信（用户改口重报租金要能生效）。
+
+    ⚠️ 2026-09-28 新增：**单价写法优先**。"3块一平一天""2.5元/㎡/天"这类是
+    **每㎡每天**的单价，绝不能被 RENT_PATTERN 读成"月租 3 元"。有面积时直接换成月租；
+    没面积时返回 None（不猜），由上层提示补面积。
     """
+    up, monthly = extract_rent_unit_price(text, area=area)
+    if up is not None:
+        # 识别到单价写法：这一条**压过**裸数字读法
+        if monthly is not None:
+            return int(monthly)
+        return None      # 有单价但缺面积 -> 不猜，交给上层追问
+
     for m in RENT_PATTERN.finditer(text or ''):
         trigger = m.group(1)
         num = _apply_unit(m.group(2), m.group(3), m.group(4))
@@ -141,7 +226,13 @@ def extract_monthly_revenue(text: str):
 
 
 def extract_address(text: str):
-    """提取地址。优先"城市+地点"；否则匹配知名区域名（下沙/文三路等）。"""
+    """提取地址。优先"城市+地点"；否则匹配知名区域名（下沙/文三路等）。
+
+    ⚠️ 2026-09-25：**这里不做清洗**。清洗的唯一表面是 `_clean_area`（agent_graph 三处调用它）。
+       本函数曾短暂挂过一个自己的清洗函数 `_clean_addr`，实测与 `_clean_area` 高度重叠
+       （切动作短语/切品类词那两步它早就做了），属于"同一件事两处表面"。
+       唯一真增量是「去助词『的』」，已合并进 `_clean_area`，此处恢复原样。
+    """
     m = ADDR_PATTERN.search(text)
     if m and len(m.group(0)) >= 3:
         return m.group(0)
@@ -412,6 +503,24 @@ def _clean_area(area):
     for suffix in suffixes:
         if t.endswith(suffix):
             t = t[: -len(suffix)]
+    # ⚠️ 2026-09-25 补：助词「的」与方位词会长在**中间**，而上面的后缀剥离
+    #    `if ...: t = ...; break` **只切一个就停** —— 切掉句尾的"奶茶店"之后，
+    #    前面的"附近"和夹在中间的"的"都不会再动。
+    #    实测后果（真机）：`geocode('宁波海曙区的火车站附近')` =
+    #    (121.550485, 29.873705)，而干净的 `'宁波海曙区火车站'` =
+    #    (121.519325, 29.866124) —— **偏约 3 公里**，跨了好几个商圈，
+    #    且该点已在海曙区东侧边缘、可能出了区界。
+    #    修法：助词全局去（中文地名基本不含「的」，安全）；
+    #          方位词循环剥（它们可能连着出现，如"附近一带"）。
+    t = t.replace('的', '')
+    while True:
+        _cut = False
+        for w in ('附近', '周边', '旁边', '一带', '周围', '区域', '那块', '这边'):
+            if t.endswith(w) and len(t) > len(w) + 1:
+                t = t[: -len(w)]
+                _cut = True
+        if not _cut:
+            break
             break
     for junk in ['的', '开', '找', '租', '在', '里']:
         while t.endswith(junk) and len(t) > 2:
@@ -438,11 +547,32 @@ def _in_zhejiang(lng, lat):
 
 
 def _city_hint(addr):
-    """从地址中提取浙江省城市名作为高德 city 参数（防止同名异地误解析）"""
+    """从地址中提取浙江省城市名作为高德 city 参数（防止同名异地误解析）。
+
+    ⚠️ 2026-09-25 补**区级约束**：地址里只写区县、不写市名时（用户口语常见），
+       高德会串到外省同名区 —— 真机实测：
+         `'西湖区'` 无 city 提示 → **南昌市西湖区** adcode 360103、坐标 (115.877, 28.657)（跨省！）
+         `'西湖区'` 带 city='杭州' → 杭州市西湖区 adcode 330106、坐标 (120.130, 30.259) ✓
+       所以这里先扫 11 个地级市（**行为不变**），扫不到再用 `zj_districts` 的区县表
+       反推地级市 —— 这样 `'西湖区'` 也能拿到 '杭州' 这个提示。
+
+    ⚠️ 与 `extract_city` 的分工（别重复）：那个给业务层用、返回裸市名；
+       这个只服务高德参数，所以额外保留了 '义乌/余杭/临安' 这几个高德友好别名。
+    """
     for c in ['杭州', '宁波', '温州', '嘉兴', '湖州', '绍兴',
               '金华', '衢州', '舟山', '台州', '丽水', '义乌', '余杭', '临安']:
         if c in addr:
             return c
+    try:
+        from agent.zj_districts import DISTRICT_TO_CITY, DISTRICT_TO_CITY_SHORT
+        for d in sorted(DISTRICT_TO_CITY, key=len, reverse=True):
+            if d in addr:
+                return DISTRICT_TO_CITY[d]
+        for s in sorted(DISTRICT_TO_CITY_SHORT, key=len, reverse=True):
+            if s in addr:
+                return DISTRICT_TO_CITY_SHORT[s]
+    except Exception:
+        pass
     return None
 
 
@@ -458,6 +588,34 @@ KNOWN_AREA_COORDS = {
 
 _GEOCODE_CACHE = None
 _GEOCODE_CACHE_PATH = None
+
+# 定位记录的字段表：缓存与返回值共用同一套形状，避免"多一处表面"
+_GEO_FIELDS = ('lng', 'lat', 'district', 'adcode', 'level', 'src')
+
+
+def _blank_record():
+    return {'lng': None, 'lat': None, 'district': None,
+            'adcode': None, 'level': None, 'src': ''}
+
+
+def _normalize_cache_value(v):
+    """缓存值兼容层。
+
+    ⚠️ 2026-09-25：缓存从 `[lng, lat]` / `null` 升级为**完整定位记录 dict**
+       （为了把高德响应里的 district / adcode 留下来做区县校验）。
+       旧缓存**必须还能读** —— 否则升级后整份缓存失效，白白重烧一遍高德配额。
+    """
+    if isinstance(v, dict):
+        rec = _blank_record()
+        for k in _GEO_FIELDS:
+            if v.get(k) is not None:
+                rec[k] = v[k]
+        return rec
+    if isinstance(v, (list, tuple)) and len(v) == 2 and v[0] is not None:
+        rec = _blank_record()
+        rec['lng'], rec['lat'], rec['src'] = v[0], v[1], 'legacy'
+        return rec
+    return _blank_record()
 
 
 def _geocode_cache():
@@ -484,59 +642,311 @@ def _save_geocode_cache():
         pass
 
 
-def geocode(addr: str):
-    """地址转坐标（带持久化缓存：命中则 0 次 API）。优先高德地理编码 API（精确到路/号），
-    纯区名时用本地数据库商业质心（避免解析到区政府），知名区域坐标表仅作为最后兜底。"""
+def geocode_record(addr: str, enrich_district: bool = False) -> dict:
+    """地址 -> **完整定位记录**（定位的**唯一实现**；`geocode()` 是它的薄包装）。
+
+    返回 {'lng','lat','district','adcode','level','src'}：
+      src='amap'        高德地理编码 —— 唯一带 district/adcode 的来源，区县校验的权威依据
+      src='centroid'    本地 POI 商业质心（纯区名，刻意避开区政府）；district/adcode 仍取自
+                        同一次高德响应的 geocodes[0]，**不是**从地址串反推的
+      src='known'       本地知名区域修正表（下沙/钱塘/未来科技城/滨江）
+      src='local'       本地 POI 模糊匹配
+      src='legacy'      旧缓存（2026-09-25 之前写入，只有坐标、没有区县）
+      src='legacy+…'    旧缓存补过区县（**坐标仍是旧值**，只填了 district/adcode；
+                        后缀是补到区县的路径，如 legacy+amap / legacy+known）
+      src=''            定位失败（lng/lat 为 None）
+
+    ⚠️ `district` / `adcode` **只来自高德**，绝不从地址串反推后填进来 ——
+       填了就变成"自己跟自己比对"，冲突检测会永远通过（**假绿**）。
+       高德没给就是 None，调用方据此**跳过**校验（不猜）。
+
+    enrich_district：命中"**本该有区县、却没记下来**"的缓存记录时补一次
+       （`src ∈ {legacy, known, local}` 且 district 为空）。补的时候**坐标保持旧值**。
+       ⚠️ 条件必须按"有没有区县"判、**不能只认 `src=='legacy'`**：
+          本次开发实测踩到 —— 修正表路径（`known`）写入的记录也没有区县，
+          只认 legacy 会让它们永远补不上，冲突检测对这些地址**静默失效**。
+       ⚠️ 为什么必须冻结坐标：坐标一漂移，所有候选的距离/排序/占比全变，
+          同一输入两次跑结果不同 —— 违反项目"确定性"红线。
+       ⚠️ 为什么默认关：这是**额外的高德调用**。批量场景（backtest 几百个地址）
+          若默认开，会成倍烧配额。只有真正要做区县校验的调用方（search_rental_node，
+          每个会话一个目标地址）才显式打开。
+    """
     cache = _geocode_cache()
     if addr in cache:
-        v = cache[addr]
-        return (v[0], v[1]) if v else (None, None)
-    result = _geocode_inner(addr)
-    cache[addr] = ([result[0], result[1]] if result[0] is not None else None)
+        rec = _normalize_cache_value(cache[addr])
+        if (enrich_district and not rec['district']
+                and rec['src'] in ('legacy', 'known', 'local')):
+            try:
+                _m = _geocode_record_inner(addr)
+            except Exception:
+                _m = {}
+            if _m.get('district') or _m.get('adcode'):
+                rec['district'] = _m.get('district')
+                rec['adcode'] = _m.get('adcode')
+                rec['level'] = _m.get('level')
+                # 坐标未动，只补了区县身份；后缀标明区县是从哪条路径补到的（amap/known）
+                rec['src'] = 'legacy+' + (_m.get('src') or 'amap')
+            cache[addr] = dict(rec)
+            _save_geocode_cache()
+        return rec
+    rec = _geocode_record_inner(addr)
+    cache[addr] = dict(rec)
     _save_geocode_cache()
-    return result
+    return rec
 
 
-def _geocode_inner(addr: str):
+def geocode(addr: str):
+    """地址转坐标（带持久化缓存：命中则 0 次 API）。优先高德地理编码 API（精确到路/号），
+    纯区名时用本地数据库商业质心（避免解析到区政府），知名区域坐标表仅作为最后兜底。
+
+    ⚠️ 薄包装：定位的**唯一实现**是 `geocode_record()`，别在这里复制逻辑。
+       需要 district/adcode（区县校验、地标冲突检测）的调用方直接用 `geocode_record()`。
+    """
+    rec = geocode_record(addr)
+    return (rec['lng'], rec['lat']) if rec['lng'] is not None else (None, None)
+
+
+def _amap_geocode(address, city):
+    """高德地理编码 —— 调用它的**唯一入口**（带并发限流重试）。返回 `geocodes[0]` 或 `{}`。
+
+    ⚠️ 为什么必须有重试（2026-09-26 真机踩到）：
+       高德有**并发 QPS 限制** —— 实测连打 4 次，第 4 次返回
+       `status=0, info='CUQPS_HAS_EXCEEDED_THE_LIMIT'`。
+       而候选定位是**循环里连续调用**（每条候选 1~3 次 geocode），
+       一旦被限流，`geocode` 就返回 `(None, None)`，候选**静默回落成"区域级"定位** ——
+       实测：清了 34 条缓存后，15 条候选**全部**变成 `addr_level='area'`、坐标全等于目标点。
+       这种回归在界面上看不出来（卡片只标"区域级·无门牌"），所以必须在这里兜住。
+
+    ⚠️ 抽成唯一入口而不是各处自己 `http_get`：本项目第一高发错就是
+       "同一件事几处表面" —— 限流这件事要么全兜住，要么等于没兜。
+    """
+    for _ in range(3):
+        try:
+            from data.fetch_poi import amap_url, http_get
+            d = http_get(amap_url('/v3/geocode/geo',
+                                  {'address': address, 'city': city or ''}), timeout=10)
+            if d.get('status') == '1':
+                return (d.get('geocodes') or [{}])[0]
+            _info = str(d.get('info') or '')
+            if 'CUQPS' in _info or 'LIMIT' in _info:
+                time.sleep(0.5)      # 被限流：短退避再试
+                continue
+            return {}                # 其它失败（查无此地址等）重试无意义
+        except Exception:
+            time.sleep(0.3)
+    return {}
+
+
+def _known_district(area_key):
+    """`KNOWN_AREA_COORDS` 的键若是**区县名**，返回规范全称（'滨江' → '滨江区'）；否则 None。
+
+    ⚠️ 为什么需要它（2026-09-25）：方案零会**抢在高德之前**返回修正坐标，
+       于是 `'杭州西湖区滨江宝龙城'` 这类地址拿不到高德给区县，
+       地标/区县冲突检测就被**静默跳过**（真机踩到）。
+       而这张表的点本来就是按区选的（'滨江' 取的就是滨江区商圈坐标），
+       所以"这一点落在哪个区"是**表里已有的信息**，如实记下不算猜 ——
+       冲突检测要的正是"我把点落在哪个区" vs "用户说的哪个区"。
+       '下沙' / '未来科技城' 不是区名（分属钱塘区/余杭区）⇒ 返回 None，不硬套。
+    """
+    try:
+        from agent.zj_districts import DISTRICT_KEYS, district_key, district_full
+        if district_key(area_key) in DISTRICT_KEYS:
+            return district_full(area_key)
+    except Exception:
+        pass
+    return None
+
+
+# 品类/动作短语：出现在「剥完剩下的」里就说明那不是地名，是没洗干净的意向句。
+# 只收**多字**词 —— 单字「店」「铺」会误伤真实地标（"XX大酒店"），所以不收。
+_LANDMARK_STOPWORDS = (
+    '奶茶店', '甜品店', '早餐店', '便利店', '茶饮店', '商铺', '店铺', '铺子', '店面', '门面',
+    '出租', '转让', '招租', '转租', '附近', '周边', '一带', '周围',
+    '开店', '开一家', '开一间', '开个', '做生意', '小生意', '想去开',
+)
+
+
+def _landmark_of(addr):
+    """从「城市+区县+地标」里剥出**地标**；剥完什么都不剩（只剩城市/区县）返回 None。
+    ⚠️ 为什么需要它（2026-09-26，策实机验收提出）：
+       `'宁波海曙区火车站'` 直接丢给高德，返回的 `level='区县'` ——
+       高德**只认到行政级别，没定位到"火车站"**。而下游把区中心当成了目标点，
+       于是用户要的"火车站附近"变成"海曙区中心附近"，实测**偏 1.8 公里**。
+
+    实测对照：
+      `geocode('宁波海曙区火车站')` → (121.5193, 29.8661)   ← 海曙区商业质心
+      `geocode('宁波火车站')`       → (121.5370, 29.8621)   ← 真·公交地铁站点 ✓
+
+    ⚠️ 剥不出地标**必须返回 None**，让调用方原样回落老路径 ——
+       `'海曙区'` / `'宁波'` / `'杭州滨江'` 都不该被这里改写行为。
+
+    ⚠️ 2026-09-26 加严（第一版太松，实测踩到）：第一版只要求"剥完还剩 ≥2 字"，
+       于是**一整句描述**也算命中 —— 缓存 600 条里有 **590 条**被误判为"含地标"
+       （如 `'宁波龙湖天街大型汉庭酒店 大型K T V，消费人群多'`：剥掉'宁波'后剩一长串）。
+       这会让长句地址也去触发一次地标定位，可能定到完全无关的地方。
+       现在要求：**必须真的剥掉城市名、且真的剥掉一个区县名**，
+       剥出来的还得**像个地名**（长度 2~12、不含空白/标点）。
+       `'下沙'`/`'文三路'`/`'宁波龙湖天街…'` 这类一律返回 None。
+    """
+    t = (addr or '').strip()
+    if not t:
+        return None
+    # 必须先能剥掉城市名 —— 否则这串不是「城市+区县+地标」形态
+    c = _city_hint(t)
+    if not (c and t.startswith(c)):
+        return None
+    t = t[len(c):]
+    # 剥区县名（全称优先，再短名）—— **必须真的剥掉一个**
+    _stripped = False
+    try:
+        from agent.zj_districts import DISTRICT_TO_CITY, DISTRICT_TO_CITY_SHORT
+        for d in sorted(DISTRICT_TO_CITY, key=len, reverse=True):
+            if t.startswith(d):
+                t = t[len(d):]
+                _stripped = True
+                break
+        if not _stripped:
+            for s in sorted(DISTRICT_TO_CITY_SHORT, key=len, reverse=True):
+                if t.startswith(s):
+                    t = t[len(s):]
+                    _stripped = True
+                    break
+    except Exception:
+        pass
+    if not _stripped:
+        return None          # 没剥到区县 ⇒ 不是「区 + 地标」形态
+    t = t.strip().lstrip('的')      # 历史缓存里有「宁波海曙区**的**火车站」这种带助词的串
+    # 剥出来的得**像一个地名**，不能是一整句
+    if not (2 <= len(t) <= 12):
+        return None
+    if re.search(r'[\s,，。、;；:：()（）\[\]【】!！?？/|·]', t):
+        return None
+    # 也不能是没洗干净的**意向句**（'的火车站附近开一家奶茶店' 剥完正好 12 字，
+    # 长度拦不住）。含品类/动作短语的一律不当地标 —— 否则会白花一次地标定位。
+    if any(w in t for w in _LANDMARK_STOPWORDS):
+        return None
+    return t
+
+
+def _landmark_coord(landmark, city_hint):
+    """地标定位（'火车站' + '宁波' → 坐标）。返回记录 dict 或 None。
+
+    两级，都**只在真能定位到比"行政级别"更具体**时才采信：
+      ① 高德查「城市+地标」—— 最准（实测 '宁波火车站' → level='公交地铁站点'，
+         误差 ≈ 0）。⚠️ 高德有**并发 QPS 限流**（实测连打 4 次第 4 次返回
+         `CUQPS_HAS_EXCEEDED_THE_LIMIT`），所以失败要能兜。
+      ② 本地 POI 库：`name` 含地标的 POI 求质心 —— 零 API、不受限流。
+         实测 '火车站' 在宁波库有 8 条，质心离真站点约 0.9 公里（比现状 1.8 公里好一半）。
+         要求样本 ≥ 3 条，否则单条噪声不当证据。
+
+    ⚠️ 高德那一步**必须再查一次 level**：如果它也只给 '省/市/区县'，
+       说明换了个写法仍然没定位到地标 —— 这种结果与现状等价，**不该采信**（白花一次调用）。
+    """
+    if not landmark or len(landmark) < 2:
+        return None
+    # ① 高德
+    if city_hint:
+        try:
+            g = _amap_geocode(f'{city_hint}{landmark}', city_hint)
+            if g:
+                loc = (g.get('location') or '').split(',')
+                _lv = g.get('level') or ''
+                if len(loc) == 2 and _lv not in ('省', '市', '区县', ''):
+                    lng, lat = float(loc[0]), float(loc[1])
+                    if _in_zhejiang(lng, lat):
+                        return {'lng': lng, 'lat': lat, 'district': g.get('district'),
+                                'adcode': g.get('adcode'), 'level': _lv, 'src': 'landmark'}
+        except Exception:
+            pass
+    # ② 本地 POI 质心兜底
+    if city_hint:
+        try:
+            from data.query import get_conn
+            _cn = city_hint if city_hint.endswith('市') else f'{city_hint}市'
+            conn = get_conn()
+            row = conn.execute(
+                'SELECT AVG(lng), AVG(lat), COUNT(*) FROM poi WHERE city = ? AND name LIKE ?',
+                (_cn, f'%{landmark}%')).fetchone()
+            # 不再 close()：连接由 data.query.get_conn() 按线程缓存复用（2026-09-27 P0-3）
+            if row and row[0] and (row[2] or 0) >= 3 and _in_zhejiang(row[0], row[1]):
+                return {'lng': row[0], 'lat': row[1], 'district': None,
+                        'adcode': None, 'level': 'poi-avg', 'src': 'landmark_local'}
+        except Exception:
+            pass
+    return None
+
+
+def _geocode_record_inner(addr: str) -> dict:
+    rec = _blank_record()
     city_hint = _city_hint(addr)
     # 方案零: 地址命中知名区域(下沙/钱塘/未来科技城/滨江)且无具体路号 -> 用修正坐标
     # (高德对"下沙大学城"等常解析偏差, 修正表更准)
     if not any(k in addr for k in ['路', '街', '号', '大道', '广场', '大厦', '中心', '小区', '公寓']):
         for area, (alng, alat) in KNOWN_AREA_COORDS.items():
             if area in addr:
-                return alng, alat
+                rec.update({'lng': alng, 'lat': alat, 'src': 'known'})
+                # 键本身是区名就直接用（'滨江'→滨江区）；不是（'下沙'）就看同一串里
+                # 有没有**别的区名键**（'杭州钱塘区下沙' 同时含 '钱塘'）。坐标不动，只补区县。
+                rec['district'] = _known_district(area)
+                if not rec['district']:
+                    for _k in KNOWN_AREA_COORDS:
+                        if _k != area and _k in addr and _known_district(_k):
+                            rec['district'] = _known_district(_k)
+                            break
+                return rec
     # 方案一: 高德地理编码 API（带城市提示 + 范围校验）—— 精确地址首选
+    # ⚠️ 走 `_amap_geocode`（唯一入口，带并发限流重试）—— 直接 http_get 会漏掉 QPS 限流，
+    #    候选定位在循环里连续调用时会大面积失败、静默回落成"区域级"。
     try:
-        from data.fetch_poi import amap_url, http_get
-        params = {'address': addr, 'city': city_hint or ''}
-        data = http_get(amap_url('/v3/geocode/geo', params), timeout=10)
-        if data.get('status') == '1':
-            geos = data.get('geocodes') or []
-            for g in geos:
+        _g0 = _amap_geocode(addr, city_hint)
+        if _g0:
+            for g in [_g0]:
                 loc = g.get('location', '').split(',')
                 if len(loc) != 2:
                     continue
                 lng, lat = float(loc[0]), float(loc[1])
                 if not _in_zhejiang(lng, lat):
                     continue
+                # 高德的区县身份 —— 顺手留下（同一次响应的字段，不额外花配额）
+                _d, _a, _lv = g.get('district'), g.get('adcode'), g.get('level')
+                # ★ 2026-09-26（策实机验收提出）：高德只认到**行政级别**时
+                #   （`level ∈ {省, 市, 区县}`），说明它**没有定位到地名本身** ——
+                #   实测 `'宁波海曙区火车站'` 只返回 level='区县'。
+                #   这时若直接用区中心，用户要的"火车站附近"就变成"海曙区中心附近"
+                #   （实测偏 **1.8 公里**，1 公里内 0 条候选）。
+                #   把地标拆出来单独定一次；**定不到就原样往下走**，既有行为一字不变。
+                if _lv in ('省', '市', '区县'):
+                    _lm = _landmark_of(addr)
+                    if _lm:
+                        _hit = _landmark_coord(_lm, city_hint)
+                        if _hit:
+                            rec.update(_hit)
+                            return rec
                 # 纯区名(短、无路/街/号) -> 用商业质心替代区政府
                 if _is_pure_district(addr):
                     c = _district_business_center(addr)
                     if c:
-                        return c
-                return lng, lat
+                        rec.update({'lng': c[0], 'lat': c[1], 'district': _d,
+                                    'adcode': _a, 'level': _lv, 'src': 'centroid'})
+                        return rec
+                rec.update({'lng': lng, 'lat': lat, 'district': _d,
+                            'adcode': _a, 'level': _lv, 'src': 'amap'})
+                return rec
     except Exception:
         pass  # 网络/配额问题则回落到本地库
     # 方案二: 纯区名兜底 -> 商业质心
     if _is_pure_district(addr):
         c = _district_business_center(addr)
         if c:
-            return c
+            rec.update({'lng': c[0], 'lat': c[1], 'src': 'centroid'})
+            return rec
     # 方案三: 仅当地址是"纯区名"时用知名区域坐标
     if len(addr) <= 6 and not any(k in addr for k in ['路', '街', '号', '大道', '广场', '大厦', '中心']):
         for area, (alng, alat) in KNOWN_AREA_COORDS.items():
             if addr.endswith(area) or addr == area:
-                return alng, alat
+                rec.update({'lng': alng, 'lat': alat, 'src': 'known'})
+                rec['district'] = _known_district(area)
+                return rec
     # 方案四: 本地数据库模糊匹配（只匹配浙江坐标）
     from data.query import get_conn
     conn = get_conn()
@@ -545,12 +955,13 @@ def _geocode_inner(addr: str):
         (f'%{addr}%', f'%{addr}%'),
     )
     row = cur.fetchone()
-    conn.close()
+    # 不再 close()：连接由 data.query.get_conn() 按线程缓存复用（2026-09-27 P0-3）
     if row:
         lng, lat = row[0], row[1]
         if _in_zhejiang(lng, lat):
-            return lng, lat
-    return None, None
+            rec.update({'lng': lng, 'lat': lat, 'src': 'local'})
+            return rec
+    return rec
 
 
 def _is_pure_district(addr):
@@ -597,7 +1008,7 @@ def _district_business_center(addr):
             WHERE adname LIKE ? AND category IN ('商圈', '办公')
         ''', (f'%{dist}%',))
         row = cur.fetchone()
-        conn.close()
+        # 不再 close()：连接由 data.query.get_conn() 按线程缓存复用（2026-09-27 P0-3）
         if row and row[0] and row[1]:
             lng, lat = float(row[0]), float(row[1])
             if _in_zhejiang(lng, lat):

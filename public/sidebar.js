@@ -288,6 +288,27 @@
     /* ⚠️ 用 --zl-warn-tx（主题感知）而不是硬编码浅红：硬编码在浅色主题下
        是"浅红字 + 白底"，几乎看不见（浅色主题的既有坑）。 */
     '#zl-right .cand-warn{font-size:12px;color:var(--zl-warn-tx);margin-top:2px;}',
+    /* 距离分档（2026-09-26）：**必须用独立 class** —— live_ui_probe §11 靠
+       `.zl-tag.warn` / `.zl-tag.mute` 数三态标签，复用会把数据可信度口径搅浑
+       （这条坑本项目已经踩过一次：转让铺标签当时也想复用 warn，被门禁挡下）。
+       颜色只复用变量，不复用 class。 */
+    '#zl-right .zl-tag.dist-near{color:var(--zl-tag-ok);background:var(--zl-tag-okbg);}',
+    '#zl-right .zl-tag.dist-mid{color:var(--zl-tag-chat);background:var(--zl-tag-chatbg);}',
+    '#zl-right .zl-tag.dist-far{color:var(--zl-tag-warn);background:var(--zl-tag-warnbg);}',
+    '#zl-right .cand-srcrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:3px;font-size:calc(11.5px * var(--zl-fs));color:var(--zl-card-lab);}',
+    '#zl-right .cand-geo{font-family:ui-monospace,Menlo,Consolas,monospace;}',
+    '#zl-right .cand-src{color:var(--zl-ring);cursor:pointer;text-decoration:underline;}',
+    /* #10 敏感性滑块（2026-09-26） */
+    '#zl-right .sens{background:var(--zl-card-bg);border:1px solid var(--zl-card-bord);border-radius:10px;padding:10px 12px;margin:8px 0;}',
+    '#zl-right .sens-head{display:flex;justify-content:space-between;align-items:baseline;font-size:calc(12.5px * var(--zl-fs));color:var(--zl-card-lab);}',
+    '#zl-right .sens-head b{font-size:calc(15px * var(--zl-fs));color:var(--zl-card-val);}',
+    '#zl-right .sens-range{width:100%;margin:9px 0 5px;accent-color:var(--zl-ring);cursor:pointer;}',
+    '#zl-right .sens-out{display:flex;flex-wrap:wrap;gap:12px;font-size:calc(12px * var(--zl-fs));color:var(--zl-card-lab);}',
+    '#zl-right .sens-out b{color:var(--zl-card-val);}',
+    /* ⚠️ 独立 class，不复用 .zl-tag.ok/.warn —— 那些被实机探针数着，复用会搅浑口径统计 */
+    '#zl-right .sens-out b.sens-pos{color:var(--zl-tag-ok);}',
+    '#zl-right .sens-out b.sens-neg{color:var(--zl-tag-warn);}',
+    '#zl-right .sens-kink{font-size:calc(11.5px * var(--zl-fs));color:var(--zl-warn-tx);margin-top:4px;line-height:1.45;}',
     '#zl-right .cand-go{flex:none;color:var(--zl-score);font-size:18px;font-weight:800;}',
     'html:not(.dark) #zl-right .cand-card{background:#fff;border-color:#eee8d5;color:#2c3e3b;}',
     'html:not(.dark) #zl-right .cand-name{color:#2c3e3b;}',
@@ -1302,10 +1323,28 @@
        captureScroll/guardScroll 兜底，因此点历史项同样不会跳顶。 */
     sendCmd('##打开:' + id + '##');
   }
+  /* #10 敏感性滑块：拖动只切档显示（数据后端已算好），不走网络、不刷屏。
+     用 document 委托而不是逐个绑定 —— 面板每次渲染都会重建 DOM，
+     逐个绑定会在重渲染后失效（本项目 click 委托也是同一套做法）。 */
+  document.addEventListener('input', function (ev) {
+    var r = ev.target && ev.target.closest && ev.target.closest('[data-sens-range]');
+    if (r) paintSens(r.getAttribute('data-sens-range'));
+  });
+
   document.addEventListener('click', function (ev) {
     var openEl = ev.target.closest('[data-open]');
     if (openEl) {
       openHistory(openEl.getAttribute('data-open'));
+      return;
+    }
+    // 58 原页外链（2026-09-26）：**必须在 [data-choose] 之前拦** ——
+    // 卡片整体是个 button，不先拦就会连带触发"我选第 N 个"。
+    // 用 span + 委托而不是 <a href>：<a href> 是 interactive content，
+    // 做 <button> 的后代不合法（见 renderCandidates 里的同一条注释）。
+    var srcEl = ev.target.closest('[data-src]');
+    if (srcEl) {
+      var su = srcEl.getAttribute('data-src');
+      if (su) window.open(su, '_blank', 'noopener,noreferrer');
       return;
     }
     var candBtn = ev.target.closest('[data-choose]');
@@ -1661,6 +1700,94 @@
     return html;
   }
 
+  /* ================= #10 敏感性滑块（2026-09-26） =================
+     ⚠️ 铁律：数字**全部由后端引擎算好下发**（`d.sensitivity`，由
+        `engine/sensitivity.py` 把同一个引擎跑若干遍排成阶梯）。
+        本文件**只做切换显示**，绝不在这里复刻任何公式 ——
+        否则拖动出来的净利与静态分析会对不上，用户看到**两套账**。
+
+     为什么是"预计算好的档位"而不是每次拖动都请求后端：
+       拖动几十次就发几十条请求/消息，既刷屏又慢；而档位数字全部来自引擎，
+       所以"拖动 = 切换引擎已算好的档"在体验上是即时的，口径上也没走样。 */
+  var LAST_SENS = null;
+
+  function sensMoney(v) {
+    if (v == null || !isFinite(Number(v))) return '—';
+    return '¥' + Math.round(Number(v)).toLocaleString('en-US');
+  }
+  function sensPct(v) {
+    if (v == null || !isFinite(Number(v))) return '—';
+    return (Number(v) * 100).toFixed(1) + '%';
+  }
+
+  function sensGroup(key, label, s) {
+    var rungs = s[key] || [];
+    if (rungs.length < 2) return '';
+    /* 基准档定位：取与基准值最接近的那一档（档位是四舍五入过的，不保证有精确相等） */
+    var bkey = (key === '租金') ? '月租' : key;   // 日单量/外卖占比 的基准键与维度同名
+    var base = (s['基准'] || {})[bkey];
+    var bi = 0, best = Infinity;
+    rungs.forEach(function (r, i) {
+      var dd = Math.abs(Number(r['值'] || 0) - Number(base || 0));
+      if (dd < best) { best = dd; bi = i; }
+    });
+    return '<div class="sens" data-sens="' + esc(key) + '">'
+      + '<div class="sens-head"><span>' + esc(label) + '</span>'
+      + '<b class="sens-cur"></b></div>'
+      + '<input type="range" class="sens-range" min="0" max="' + (rungs.length - 1)
+      + '" step="1" value="' + bi + '" data-sens-range="' + esc(key) + '"'
+      + ' aria-label="' + esc(label) + ' 敏感性">'
+      + '<div class="sens-out"></div><div class="sens-kink"></div></div>';
+  }
+
+  function renderSensitivity(s) {
+    if (!s || !s['租金'] || s['租金'].length < 2) return '';
+    LAST_SENS = s;
+    var h = '<div class="zr-sec">敏感性 · 拖动看结论怎么变</div>'
+      + '<div class="zr-sub">数字全部来自同一套引擎（不是前端另算）</div>';
+    h += sensGroup('租金', '月租（元/月）', s);
+    h += sensGroup('日单量', '日单量（单/天）', s);
+    h += sensGroup('外卖占比', '外卖占比（%）', s);
+    if (s['口径']) h += '<div class="zr-sub">' + esc(s['口径']) + '</div>';
+    return h;
+  }
+
+  /* 把某一档的数据画进对应滑块下方。**只读 LAST_SENS，不算任何数**。 */
+  function paintSens(key) {
+    if (!LAST_SENS) return;
+    var box = document.querySelector('[data-sens="' + key + '"]');
+    if (!box) return;
+    var rng = box.querySelector('[data-sens-range]');
+    if (!rng) return;
+    var r = (LAST_SENS[key] || [])[+rng.value];
+    if (!r) return;
+    var cur = box.querySelector('.sens-cur');
+    if (cur) {
+      cur.textContent = (key === '租金') ? (sensMoney(r['值']) + ' 元/月')
+        : (key === '外卖占比') ? (r['值'] + '%') : (r['值'] + ' 单/天');
+    }
+    var out = box.querySelector('.sens-out');
+    if (out) {
+      /* ⚠️ 高亮用**独立 class**（sens-pos/sens-neg），不用 zl-tag.ok/warn ——
+         那几个 class 被实机探针用来数三态标签，复用会把口径统计搅浑。 */
+      var cls = (Number(r['月净利']) > 0) ? 'sens-pos' : 'sens-neg';
+      out.innerHTML = '<span>月净利 <b class="' + cls + '">' + sensMoney(r['月净利']) + '</b></span>'
+        + '<span>可签租金上限 <b>' + sensMoney(r['回本达标月租上限']) + '</b></span>'
+        + '<span>净利率 <b>' + sensPct(r['净利率']) + '</b></span>';
+    }
+    var kink = box.querySelector('.sens-kink');
+    if (kink) {
+      kink.innerHTML = r['台阶']
+        ? ('⚠️ ' + esc(r['台阶']))
+        : '';
+    }
+  }
+
+  /* 渲染完调一次，把两个滑块的当前档画出来（幂等：找不到元素就 no-op） */
+  function armSensitivity() {
+    ['租金', '日单量', '外卖占比'].forEach(paintSens);
+  }
+
   function renderAnalysis(d) {
     var h = '';
     h += '<div class="zr-shop">' + esc(d.shop) + '</div>';
@@ -1716,13 +1843,32 @@
       d.caliper_rows.forEach(function (r) { h += '<tr><td class="k">' + esc(r[0]) + '</td><td class="v">' + esc(r[1]) + '</td></tr>'; });
       h += '</table>';
     }
-    if (d.map_b64) {
+    /* #11 业态判定上屏（2026-09-26）：复用现有的 zr-note 小字组件（不新造样式），
+       ⚠️ 必须写清"是 LLM 判的还是情景档默认的" —— 这笔账里的场地附加费率
+          是业态直接决定的（商场店 15% vs 街边铺 0%），用户有权知道它从哪来。 */
+    if (d.biz_type && d.biz_type['业态']) {
+      var _fee = d.biz_type['费率'];
+      h += '<div class="zr-note">铺位业态：<b>' + esc(d.biz_type['业态']) + '</b>'
+        + '（' + esc(d.biz_type['来源'] || '') + '）'
+        + (_fee == null ? '' : ' → 场地附加费率 ' + (Number(_fee) * 100).toFixed(0) + '%')
+        + (d.biz_type['依据'] ? '。' + esc(d.biz_type['依据']) : '')
+        + '</div>';
+    }
+    h += renderSensitivity(d.sensitivity);
+    /* ⚠️ 2026-09-23：地图源 = `map_url || map_b64`（不是只认新字段）。
+       服务端已把 last_sim.json 的内联 base64 拆成独立 PNG
+       （/public/last_sim_map.png?v=<analysis_id>）—— 这份 json 被本页每 2.5s 轮询重拉，
+       内联 564KB base64 时每次全量重传，实测首屏因此多传 2.4MB。
+       保留 `|| d.map_b64` 是**刻意**的：sim_boards 的历史归档仍内联 base64
+       （归档不在首屏路径，且它不能指向共享图 —— 否则回放历史会串成最新那张）。 */
+    var _mapSrc = d.map_url || d.map_b64;
+    if (_mapSrc) {
       /* ⚠️ 2026-09-21：这里**不再叫「仿真看板」**。右栏这块是**位置热力图**
          （高德底图 + POI 点位），而"仿真大屏"是左栏那个独立入口的**自绘场景**。
          两者曾是同一个名字，策看到浮层时才会说"和把右侧热力图搬过来有什么区别"。 */
       h += '<div class="zr-sec">周边热力图 · 客流轨迹</div>'
         + '<div class="zr-map"><div class="zr-simstage">'
-        + '<img src="' + d.map_b64 + '" alt="周边地图"/>'
+        + '<img src="' + _mapSrc + '" alt="周边地图"/>'
         + simOverlay(d.sim) + '</div>'
         + '<div class="zr-legend">红点 = 本铺 · 红圈 = 竞品 · 蓝点 = 客群 POI · 蓝环 = 分析半径'
         + ' · <b>彩色轨迹 = 步行路网路径，小人沿真实街道走向本铺</b></div></div>'
@@ -2311,6 +2457,22 @@
     return '';
   }
 
+  /* 距离显示（2026-09-26）：米数 -> 人话 + 分档。
+     分档阈值 1km / 3km —— 步行约 15 分钟 / 打个车起步价的量级。
+     ⚠️ 独立 class（dist-near/mid/far），不复用 warn/mute —— 那两个被探针数着。 */
+  function fmtDist(m) {
+    var v = Number(m);
+    if (!isFinite(v)) return '';
+    return v < 1000 ? (Math.round(v) + '米') : ((v / 1000).toFixed(1) + '公里');
+  }
+  function distTag(m) {
+    var v = Number(m);
+    if (!isFinite(v)) return '';
+    if (v <= 1000) return '<span class="zl-tag dist-near">步行可达</span>';
+    if (v <= 3000) return '<span class="zl-tag dist-mid">3公里内</span>';
+    return '<span class="zl-tag dist-far">3公里外</span>';
+  }
+
   function renderCandidates(d) {
     var cards = d.cards || [];
     var h = '';
@@ -2326,6 +2488,12 @@
         info.push(esc(c.price) + '元/月' + candStateTag(c.rent_state, 'rent'));
       } else {
         info.push('租金未标');
+      }
+      // 距目标点的**真实距离**（2026-09-26）：用户说"附近"，就得让他看得见多远。
+      // 改造前距离只用于排序、**从不上屏** —— 用户完全没法核对"附近"是否兑现
+      // （实测那次：说"火车站附近"，拿到的全在 1.7~6.4 公里外，界面上一点看不出来）。
+      if (c.dist_m != null) {
+        info.push('距目标 ' + fmtDist(c.dist_m) + distTag(c.dist_m));
       }
       // 房源性质（诉求③）：**三态** —— '转让' / '出租' / ''（判不出）。
       // ⚠️ 判不出的必须**不打标签**，不许默认成"房东招租"：那是替平台猜性质，
@@ -2358,6 +2526,20 @@
         warn += '<div class="cand-warn">该铺是别人在转店：谈判对象是现任租户，'
           + '问清转让费、原租约剩余期、设备是否另计</div>';
       }
+      // 坐标 + 58 原页（2026-09-26）：让用户**能自己核对**。
+      // 坐标拿去高德/百度地图一搜就知道落在哪；58 原页是原始挂牌。
+      // ⚠️ 必须用 span + 委托（`data-src`），不能写 <a href> —— 卡片整体是 <button>，
+      //    而 <a href> 属于 interactive content，做 button 的后代是非法 HTML，
+      //    且点击会连带触发"我选第 N 个"（冒泡到 [data-choose]）。
+      var srcrow = '';
+      if (c.lat != null && c.lng != null) {
+        srcrow += '<span class="cand-geo">📍 ' + Number(c.lat).toFixed(5) + ', '
+          + Number(c.lng).toFixed(5) + '</span>';
+      }
+      if (c.detail_url) {
+        srcrow += '<span class="cand-src" data-src="' + esc(c.detail_url) + '">58 原页 ↗</span>';
+      }
+      if (srcrow) warn += '<div class="cand-srcrow">' + srcrow + '</div>';
       h += '<button class="cand-card" data-choose="' + c.i + '" type="button" aria-label="选择第' + c.i + '家 ' + esc(c.name) + '">' +
         '<div class="cand-no">' + c.i + '</div>' +
         '<div class="cand-body">' +
@@ -2752,6 +2934,7 @@
     wasPlaceholder = false;
     lastContent = html;
     body.innerHTML = html;
+    armSensitivity();     // #10 滑块：渲染后把两个滑块的当前档画出来（幂等）
   }
 
   /* ---- 10. a11y 增强（幂等）：标题层级 / 步骤播报 / 图标按钮命名 / 主题按钮中文名 ---- */
@@ -3261,7 +3444,20 @@
     }
     // 本地刚切过（6 秒内）就不采纳服务端值：sendCmd 是异步的，
     // refresh_sidebar 还没跑完时轮询回来的 current_expert 仍是旧值，直接采纳会"弹回去"。
-    if (cur !== undefined && Date.now() - CUR_LOCK > 6000) CUR_EXPERT = cur || '';
+    if (cur !== undefined && Date.now() - CUR_LOCK > 6000) {
+      /* ⚠️ 2026-09-25：服务端也会驱动切换了（agent 按本轮提问自动判定视角，见
+         app_chainlit 里 run_agent 之后的「专家视角自动切换」）。
+         顶栏标签字号小，静默换人格用户根本注意不到 —— 会以为"它怎么突然换了口气"。
+         所以：非首次加载、且值确实变了 → 弹一次浮层说明来由。
+         `_first` 用 EX_SIG 判：首次 syncExperts 时 EX_SIG 还是空串，那一次不弹。 */
+      var _first = (EX_SIG === '');
+      var _prev = CUR_EXPERT;
+      CUR_EXPERT = cur || '';
+      if (!_first && _prev !== CUR_EXPERT) {
+        var _e = expertById(CUR_EXPERT);
+        if (_e) showToast('已按本轮提问切到 ' + exLabel(_e) + '（可在专家面板改回）');
+      }
+    }
     renderExpertBar();
   }
   /* 专家系统卡片页正文（三行三列由 CSS grid 保证，见样式表 .zl-ex-grid） */

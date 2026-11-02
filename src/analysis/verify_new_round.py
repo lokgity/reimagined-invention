@@ -238,12 +238,21 @@ async def main():
     #    -> search_rental），于是 state 里又出现**新地点的**候选 —— 这是**正确**行为。
     #    所以判据不是"candidates 为空"，而是"候选里**不许残留旧地点**"。
     _c = st3.get('candidates') or []
-    _old_kept = [c for c in _c if '鹿城' in str(c.get('address', ''))]
+    # ⚠️ 2026-09-26 修**判据**（原来是对 `address` 做**字面查**，属脆断言）：
+    #    58 的 loc 首段是**商圈名**，可能与**别的区**同名。实测抓到一条
+    #    loc = `鹿城-广化温州医科大学(茶山校区)-温州市-瓯海区-茶山高教园区`
+    #    —— "鹿城"是 58 标的商圈/片区名，而 **58 自己标的行政区是瓯海区**；
+    #    独立 regeo 反查该候选坐标 (120.6285, 27.9587) 也确认 = **瓯海区**娄桥街道。
+    #    字面查把这条**误判成"旧地点残留"**（假阳性），门禁因此报红。
+    #    ⇒ 改用候选自带的**区县归属**（`rental58._item_district` 判出来的行政归属）：
+    #    判据从"这段文字里有没有旧区名"变成"**这条铺子到底属于哪个区**"。
+    #    这才是这条断言的本意（"换地点后不许残留旧地点的铺源"），而且**更严** ——
+    #    第 2 条现在要求每条候选的归属**确实**是瓯海区，不再靠 loc 里的字样蒙。
+    _old_kept = [c for c in _c if '鹿城' in str(c.get('district') or '')]
     check(not _old_kept,
           '换地点后候选里没有旧地点（鹿城区）残留', len(_old_kept))
     if _c:
-        _new_ok = [c for c in _c if '瓯海' in str(c.get('address', ''))
-                   or '瓯海' in str(c.get('name', ''))]
+        _new_ok = [c for c in _c if '瓯海' in str(c.get('district') or '')]
         check(len(_new_ok) == len(_c),
               '换地点后候选**全部**是新地点（瓯海区）的铺源',
               '%d/%d' % (len(_new_ok), len(_c)))

@@ -324,7 +324,7 @@ def _nearest_road_stop(lng, lat, topk=30):
     from data.query import get_conn
     conn = get_conn()
     rows = conn.execute("SELECT lng, lat FROM poi WHERE category='通勤'").fetchall()
-    conn.close()
+    # 不再 close()：连接由 data.query.get_conn() 按线程缓存复用（2026-09-27 P0-3）
     if not rows:
         return None
     cand = sorted(rows, key=lambda r: haversine(lng, lat, r[0], r[1]))[:topk]
@@ -569,7 +569,7 @@ def _bisect_rent(f, cap=1_000_000.0):
 
 
 def solve_rent_limits(category, area_m2, city, investment, staff, sales_est, brand,
-                      price=None) -> dict:
+                      price=None, biz=None, takeout_ratio=None) -> dict:
     """反解两个租金临界点（纯本地二分，0 次 API）：
       盈亏平衡月租    : 月净利 = 0
       回本达标月租上限 : 回本周期 = PAYBACK_LIMIT_MONTHS
@@ -582,7 +582,8 @@ def solve_rent_limits(category, area_m2, city, investment, staff, sales_est, bra
 
     def prof(rent):
         return estimate_profit(category, area_m2, city, rent, investment=investment,
-                               staff=staff, sales_est=sales_est, brand=brand, price=price)
+                               staff=staff, sales_est=sales_est, brand=brand, price=price,
+                               biz=biz, takeout_ratio=takeout_ratio)
 
     def payback_margin(rent):
         pb = prof(rent).get('回本周期(月)')
@@ -620,7 +621,7 @@ ELASTICITY_CALIPERS = (
 
 
 def elasticity_band(category, area_m2, city, monthly_rent, investment, staff, brand,
-                    sales_est, price_eff):
+                    sales_est, price_eff, biz=None):
     """价格弹性未知时的两端口径区间。**这不是置信区间**，是两个建模极端。
 
     返回 None 表示不适用（无面积、或未做客单价校正——此时两端退化为同一个数，
@@ -652,7 +653,7 @@ def elasticity_band(category, area_m2, city, monthly_rent, investment, staff, br
         # 更高的单量与更多的人力成本，而不是白捡一份流水。
         p = estimate_profit(category, area_m2, city, monthly_rent,
                             investment=investment, staff=staff,
-                            sales_est=sales, brand=brand, price=price_eff)
+                            sales_est=sales, brand=brand, price=price_eff, biz=biz)
         tiers.append({
             '口径': name, '价格弹性假设': elast, '说明': note,
             '角色': ('本报告单点数字即此端' if elast == 0.0
@@ -865,7 +866,8 @@ def business_score(profit, bands=None, veto_triggered=False, has_rent=True):
 
 
 def score_site(category, lng, lat, monthly_rent, name='', area_m2=None, city=None,
-               city_level=1.0, investment=None, staff=None, brand=None, price_ref=None):
+               city_level=1.0, investment=None, staff=None, brand=None, price_ref=None,
+               biz=None):
     """对单个地址评分，返回完整结果 dict。
     area_m2: 商铺面积(㎡), 提供后启用面积适配度维度+水电盈利测算+盈利一票否决
     investment: 用户前期投入成本(元)，用于装修档次 + 回本测算
@@ -1023,13 +1025,14 @@ def score_site(category, lng, lat, monthly_rent, name='', area_m2=None, city=Non
         utility = estimate_monthly_utility(category, area_m2, city)
         profit = estimate_profit(category, area_m2, city, monthly_rent or 0,
                                  investment=investment, staff=staff,
-                                 sales_est=est_sales, brand=brand, price=corrected_price)
+                                 sales_est=est_sales, brand=brand, price=corrected_price,
+                                 biz=biz)
         profit_bands = estimate_profit_bands(category, area_m2, city, monthly_rent or 0,
                                              investment=investment, staff=staff,
                                              sales_est=est_sales, brand=brand,
-                                             price=corrected_price)
+                                             price=corrected_price, biz=biz)
         rent_limits = solve_rent_limits(category, area_m2, city, investment, staff,
-                                        est_sales, brand, price=corrected_price)
+                                        est_sales, brand, price=corrected_price, biz=biz)
 
     # 价格—单量弹性区间：只在"客单价被品牌校正"时才有意义（未校正时两端同值）。
     # 放在结论层而不是塞进 estimate_monthly_sales，是因为它要并列跑两套完整成本
@@ -1037,7 +1040,8 @@ def score_site(category, lng, lat, monthly_rent, name='', area_m2=None, city=Non
     caliper_band = None
     if corrected_price:
         caliper_band = elasticity_band(category, area_m2, city, monthly_rent or 0,
-                                       investment, staff, brand, sales_est, corrected_price)
+                                       investment, staff, brand, sales_est, corrected_price,
+                                       biz=biz)
 
     # 产能可行性：人数被产能下限上调时必须明说。否则用户看到"2 个人、月净利 X"
     # 会以为自己 2 个人真能干出来，而测算其实是按 3~4 个人扣的人工。

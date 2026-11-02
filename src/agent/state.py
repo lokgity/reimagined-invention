@@ -63,6 +63,18 @@ class AgentState(TypedDict, total=False):
     # 分析结果
     score_result: Optional[Dict]  # 评分结果
     interpretation: Optional[str] # LLM 解读文本
+
+    # 数字溯源校验（2026-09-28，专家评审 P0-3）：把"引擎产数、LLM 产文"
+    # 从一句承诺变成机器断言 —— 抽出话术里的金额/百分比/月数，逐一与引擎
+    # 结果比对（相对容差 1%），未溯源清单挂这里供报告/审计读取。
+    # ⚠️ 与 output_guard.audit() 的返回同构；诊断而非改写。
+    number_check: Optional[Dict]
+
+    # 决策记录（2026-09-28，专家评审 P0/P1）：本次决策的**证据包** +
+    # 内容指纹（SHA-256 前 16 位）。把"结论可复核"变成凭据 ——
+    # 同输入 + 同口径 ⇒ 同指纹；引擎常量（λ/uplift 表/POI 库）一变指纹即变，
+    # 旧结论自动作废。详见 `agent/decision_record.py`。
+    decision_record: Optional[Dict]
     
     # 流程控制
     phase: str                    # 当前阶段：intro/have_shop/no_shop/select_shop/analysis/chat

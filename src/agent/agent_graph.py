@@ -46,16 +46,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from agent.state import AgentState
 from agent.llm import call_llm, call_llm_sync, call_llm_with_tools
 from agent.agent import (
-    parse_request, geocode, extract_guest, extract_mode, extract_area,
+    parse_request, geocode, geocode_record, extract_guest, extract_mode, extract_area,
     extract_address, _clean_area, _is_pure_district, _district_business_center,
-    _in_zhejiang, KNOWN_AREA_COORDS, extract_brand,
+    _in_zhejiang, KNOWN_AREA_COORDS, extract_brand, _landmark_of,
     extract_rent, extract_category, extract_monthly_revenue,
     # 供 `_mask_revenue_rent` 复用：**不新写第二套**"什么算租金/流水"的规则
     RENT_PATTERN, REVENUE_PATTERN, DAILY_REVENUE_PATTERN,
 )
 from agent.rental58 import fetch_shops, CITY_CODES
 from agent.zj_districts import (
-    DISTRICT_TO_CITY, DISTRICT_TO_CITY_SHORT, AMBIGUOUS_SHORT)
+    DISTRICT_TO_CITY, DISTRICT_TO_CITY_SHORT, AMBIGUOUS_SHORT, district_key)
 from agent.knowledge import build_context as kb_context
 from agent.knowledge import policy_links as kb_policy_links
 from experts import registry as experts
@@ -1251,6 +1251,14 @@ async def classify_node(state: AgentState) -> Dict[str, Any]:
     guest = extract_guest(user_msg)
     mode = extract_mode(user_msg)
     area = extract_area(user_msg)
+    # ⚠️ 2026-09-28：单价写法（"3块一平一天"）换算月租**必须**带上面积，
+    #    所以这里在 area 之后重新算一次 rent 并覆盖 —— `parse_request` 里那次
+    #    抽 rent 时还不知道面积，单价写法只会返回 None。
+    #    只有在"本轮真的出现了租金线索"时才覆盖，避免把上一轮已确认的 rent 抹掉。
+    if info.get('rent') is not None or area:
+        _rent2 = extract_rent(user_msg, area=area)
+        if _rent2 is not None:
+            info['rent'] = _rent2
     brand = extract_brand(user_msg)
     # 已开店诊断：月流水（用户自报）。与 rent 同理，抽不到就保留旧值。
     revenue = extract_monthly_revenue(user_msg)
@@ -2002,9 +2010,11 @@ async def diagnose_node(state: AgentState) -> Dict[str, Any]:
         revenue = int(round(daily_orders * price * 30))
         folded_from_orders = True
     rent = state.get('rent')
-    if rent is None:
-        rent = extract_rent(_parse_src)
     area = state.get('area') or extract_area(_parse_src)
+    if rent is None:
+        # ⚠️ 必须把面积传进去：单价写法（"3块一平一天"）要 × 面积 × 30 才换算成月租。
+        #    不传面积 -> 只认到单价、月租返回 None（宁可追问，也不把 3 元当整月租金）。
+        rent = extract_rent(_parse_src, area=area)
     city = state.get('city') or extract_city(_parse_src)
     # 人数与前期投入（2026-09-17 补齐）：改前这里只读 `state`，而 `state['staff']` /
     # `state['investment']` 只在 A 路径的 `collect_invest` 环节才写入 —— 走「已开店」
@@ -2159,11 +2169,13 @@ async def reverse_match_node(state: AgentState) -> Dict[str, Any]:
                        '逐品类跑 Huff 引力模型算 D×P…')
 
     recs = []
+    # #11 业态判定：只判**一次**，四品类共用（业态与品类无关，是铺位的属性）
+    _biz = await _biz_ctx(state, address)
     for cat in REVERSE_CATEGORIES:
         try:
             r = await asyncio.to_thread(
                 score_site, cat, lng, lat, rent, address, area,
-                city=city, city_level=1.0,
+                city=city, city_level=1.0, biz=_biz,
             )
         except Exception as e:
             recs.append({'category': cat, 'error': f'{type(e).__name__}: {e}'})
@@ -2456,25 +2468,59 @@ def _cand_completeness(c) -> float:
     return s
 
 
-def _rank_candidates(cands, target_lng, target_lat):
-    """按「字段完整度 → 距区域中心」排序后截断到 `CAND_TOTAL`。
+def _fmt_m(m):
+    """米数 -> 人话（'820米' / '1.7公里'）。口径与前端 `fmtDist` 一致（1km 为分界）。"""
+    try:
+        v = float(m)
+    except Exception:
+        return '—'
+    return f'{int(round(v))}米' if v < 1000 else f'{v / 1000:.1f}公里'
+
+
+def _rank_candidates(cands, target_lng, target_lat, dist_first=False):
+    """按「字段完整度 → 距目标点」排序后截断到 `CAND_TOTAL`。
 
     ⚠️ 为什么不是简单截断前 15 个：扩容后 58 返回的条目里混着"只有区域定位、
     没有面积租金"的（实测缺面积 ~10%，兜底条目则是全缺）。若按抓取顺序截断，
     用户点前几个就可能全是算不了的铺子，扩容反而更差。
     所以先按"能算出多少"排，**缺字段的不丢弃、只排后面**（仍可点，卡片如实标注）。
+
+    ⚠️ 2026-09-26 改（策实机验收提出"怎么知道这些店真在火车站附近"）：
+      ① 新增 `dist_m` —— 候选**带上距目标点的米数**，卡片显示出来。
+         原来那个内部字段 `_dist` 排完序就被 pop 掉了，用户什么也看不到，
+         "附近"变成了一句没法核对的话。现在换成面向用户的 `dist_m`。
+      ② 新增 `dist_first`：用户给的是**「区 + 地标」**（如"海曙区火车站"）时，
+         距离才是主诉求 —— 这时**距离优先**。否则一个 6 公里外但字段齐全的铺子
+         会排在 1.7 公里但缺面积的铺子前面（实测就是这样，"附近"看着是假的）。
+         纯区县查询（"海曙区"）**保持原行为**：完整度优先，距离只做次键。
     """
     for c in cands:
+        # ⚠️ 2026-09-26 关键修正（自己引入的 bug，实测抓到）：
+        #    `addr_level == 'area'` 的候选，坐标就是**目标点本身**
+        #    （定位阶梯第 4 步"回落区域中心"是直接 `lng, lat = target_lng, target_lat`）。
+        #    给它算距离必然得到 **0 米** —— 那是**假信息**：看着"就在目标点旁边"，
+        #    实际是"我们根本不知道它在哪"。
+        #    更糟的是配合 `dist_first` 排序时，这些假 0 会**全部插队到最前**，
+        #    把真正精确定位的候选（1~6 公里）全挤出 15 条之外
+        #    （实测：改完之后 15 条候选全是 area 级、距离全是 0m —— 界面上完全看不出问题）。
+        #    ⇒ 区域级候选**不给距离**，卡片不显示，排序时用大值兜到最后。
+        if c.get('addr_level') == 'area':
+            c['dist_m'] = None
+            continue
         try:
-            c['_dist'] = (haversine(target_lng, target_lat, c['lng'], c['lat'])
-                          if target_lng is not None else 0)
+            c['dist_m'] = (round(haversine(target_lng, target_lat, c['lng'], c['lat']))
+                           if target_lng is not None else None)
         except Exception:
-            c['_dist'] = 0
-    cands.sort(key=lambda c: (-_cand_completeness(c), c.get('_dist') or 0))
+            c['dist_m'] = None
+    if dist_first:
+        cands.sort(key=lambda c: (c.get('dist_m') if c.get('dist_m') is not None
+                                  else 9_999_999,
+                                  -_cand_completeness(c)))
+    else:
+        cands.sort(key=lambda c: (-_cand_completeness(c), c.get('dist_m') or 0))
     kept = cands[:CAND_TOTAL]
     for i, c in enumerate(kept, 1):
         c['i'] = i
-        c.pop('_dist', None)
     return kept
 
 
@@ -2557,12 +2603,71 @@ def cand_state_brief(cands) -> str:
 
 
 def area_filter_of(area: str, city: str = '') -> str:
-    """候选检索用的区域过滤词（去掉城市前缀）。与 search_rental 内部保持一致。"""
+    """候选检索用的区域过滤词（去掉城市前缀，且**截断到区县**）。与 search_rental 内部保持一致。
+
+    ⚠️ 2026-09-25 修（#8）：改造前是"去掉城市前缀后原样返回"，于是
+       `area_filter_of('宁波海曙区火车站', '宁波')` = **`'海曙区火车站'`** ——
+       这个串在 58 的标题/loc 里**一条都匹配不到** ⇒ 候选**必然为 0**（真机踩到）。
+       根因是把两种词混为一谈：**地标是给 geocode 定位用的，不是区域词**。
+       现在：认得出区县就返回区县（`'宁波海曙区火车站'` → `'海曙区'`），
+       认不出才退回原样 —— 既有行为逐字不变
+       （`'杭州滨江'` → `'滨江'`、`'滨江'` → `'滨江'`、`'宁波'` → `''`）。
+    """
     a = area or ''
+    _d = extract_district(a)
+    if _d:
+        return _d
     for c in CITY_CODES:
         if a.startswith(c):
             return a[len(c):]
     return a
+
+
+async def _biz_ctx(state, address):
+    """#11 业态判定（2026-09-26，策拍板「**允许影响数字**」）。
+
+    **平台标签优先，LLM 兜底** —— 理由见 `engine.biz_type.PLATFORM_MAP` 上的注释：
+    实测纯 LLM 判定与 58 平台标签的一致率只有 **45%**（97 条抽样），
+    其中 6 条把非商场判成「商场店」（被"大厦/MALL/广场"诱导；费率 0→15%，最贵的错）。
+    而 58 卡片**自带业态标签、覆盖率 99%** ⇒ 有标签就用它（零 LLM、完全可复现），
+    没有（用户手输地址，如"杭州湖滨银泰in77"）才走 LLM。
+
+    返回可直接喂 `score_site(biz=…)` 的一整包；判不出时 `场地附加费率` 为 None
+    ⇒ 引擎**不覆盖**，沿用用户选的情景档。
+
+    ⚠️ 三条边界（都写在这，改的人别绕开）：
+      ① **LLM 只出标签**（商场店/街边铺/…），成本影响由 `engine.biz_type`
+         的映射表决定 —— 钱仍由引擎算，「引擎产数、LLM 产文」的红线没破。
+      ② 判定结果**落盘缓存**：同一铺位只判一次，之后复用。
+         这是"允许影响数字"之后**保住可复现性**的主要手段（同样是"同一输入
+         两次跑结果一致"这条，靠缓存而不是靠 LLM 稳定）。
+      ③ **必须出声**：判出业态就把"判成什么、费率多少、依据是什么"写进
+         「执行过程」—— 用户得能分辨哪笔数字来自业态判定，而不是默默变了。
+    """
+    # **平台标签优先**（2026-09-26 评估后定）：从"选中的候选"上取 58 自己标的业态。
+    # 用户手输地址（"杭州湖滨银泰in77"）没有这个标签 ⇒ 自动回落 LLM 判定。
+    _pb = ''
+    try:
+        _cands = state.get('candidates') or []
+        _i = int(state.get('selected_idx') or 0)
+        if 1 <= _i <= len(_cands):
+            _pb = _cands[_i - 1].get('平台业态') or ''
+    except (TypeError, ValueError):
+        _pb = ''
+    try:
+        from engine.biz_type import resolve as _resolve_biz
+        biz = await asyncio.to_thread(_resolve_biz, address, _pb)
+    except Exception:
+        return None
+    if biz and biz.get('场地附加费率') is not None:
+        try:
+            await _emit(state, 'tool', '业态判定',
+                        input_=str(address)[:60],
+                        output=f"判为「{biz['业态']}」（{biz['判定来源']}）→ "
+                               f"场地附加费率 {biz['场地附加费率']:.0%}；{biz['依据']}")
+        except Exception:
+            pass
+    return biz or None
 
 
 async def search_rental_node(state: AgentState) -> Dict[str, Any]:
@@ -2606,17 +2711,37 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
 
     # 区域中心坐标：只 geocode 一次（1 次高德调用）
     target_lng, target_lat = (None, None)
+    district_conflict = ''
     if area:
         _st.start('地址定位(geocode)')
-        target_lng, target_lat = geocode(area)
+        # ⚠️ 用 geocode_record 而不是 geocode：只有它带回高德解析出的 district/adcode，
+        #    区县校验全靠这个值。enrich_district=True 只对"本该有区县却没记下来"的
+        #    缓存记录补一次，**坐标保持旧值**（坐标一漂移，候选排序就不可复现）。
+        _rec = geocode_record(area, enrich_district=True)
+        target_lng, target_lat = _rec['lng'], _rec['lat']
         _st.stop('地址定位(geocode)')
         await _emit(state, 'tool', '地址定位',
                     input_=f'定位「{area}」',
                     output=f'坐标 ({target_lng:.5f}, {target_lat:.5f})（优先本地库，0~1 次高德调用）'
                     if target_lng else f'「{area}」定位失败')
+        # ---- #8 地标 / 区县一致性校验 ----
+        # 用户口中的区县 vs 高德按**这个地名**实际定位到的区县（如 "西湖区的滨江宝龙城"
+        # 实测落在滨江区）。只在两边都有值时才比：高德没解析出区县就**跳过**，不猜。
+        _stated = extract_district(area)
+        _actual = _rec.get('district') or ''
+        if _stated and _actual and district_key(_stated) != district_key(_actual):
+            district_conflict = (
+                f'⚠️ **您给的地名和区县对不上**：说的是「{_stated}」，'
+                f'按高德定位「{area}」实际落在「{_actual}」。\n'
+                f'下面这批候选按**高德定位所在的{_actual}**检索；'
+                f'若您要的是{_stated}，把地标换成{_stated}里的名字再问一次。\n\n')
+            await _emit(state, 'tool', '地标/区县一致性校验',
+                        input_=f'{area}（您说是 {_stated}）',
+                        output=f'高德解析到 {_actual} → 已按实际区县继续，并在结论里提示')
 
     def add_cand(name, address, lng, lat, source, area_m2=None, price=None, precise=False,
-                 img=None, deal='', addr_level='area'):
+                 img=None, deal='', addr_level='area', detail_url=None, district='',
+                 platform_biz=''):
         key = (name, round(lng, 4), round(lat, 4))
         if key in seen:
             return
@@ -2630,6 +2755,17 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
             'deal': deal,
             # 定位层级：door / building / street / area —— 卡片按级显示
             'addr_level': addr_level,
+            # 58 原页链接：2026-09-26 加 —— 用户要能**点回源头**自己核对，
+            # 光给一个我们自己算的地址，他没法验证到底可不可信。
+            'detail_url': detail_url,
+            # 58 平台自己标的业态（2026-09-26 加）：**#11 平台标签优先**要用它。
+            # ⚠️ 它是 58 的标注（中介填的），不是真值；只在"没标签时"才回落到 LLM 判定。
+            '平台业态': platform_biz,
+            # 区县归属（2026-09-26 加）：`rental58._item_district` 判出来的行政归属。
+            # ⚠️ 别拿 `address` 里的文字去反推区县 —— 58 的 loc 首段是**商圈名**，
+            #    可能是**别的区**的名字（实测：loc='鹿城-…-温州市-瓯海区-…' 的铺子
+            #    其实在瓯海区，独立 regeo 也确认了），拿文字判会出假阳性。
+            'district': district,
         })
 
     shops, fetch_meta = [], {}
@@ -2732,7 +2868,9 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
                 show_addr = f'{title_text}（{loc_text}）' if loc_text and title_text else (title_text or loc_text or area)
                 add_cand(s['title'], show_addr, lng, lat, '58同城(在租)',
                          area_m2=s.get('area'), price=s.get('price'), precise=precise,
-                         img=s.get('img'), deal=s.get('deal') or '', addr_level=lvl)
+                         img=s.get('img'), deal=s.get('deal') or '', addr_level=lvl,
+                         detail_url=s.get('detail_url'), district=s.get('district') or '',
+                         platform_biz=s.get('平台业态') or '')
         except Exception:
             pass
         # 取数失败 vs 真的没有：meta 里 ok=False 才算失败，两者文案必须不同
@@ -2744,6 +2882,15 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
             pages = len(fetch_meta.get('pages') or [])
             fetch_txt = (f'抓取到 {len(shops)} 条在租商铺（{pages} 个页面并发，'
                          f'原始卡片 {fetch_meta.get("raw", 0)} 张，耗时 {fetch_meta.get("elapsed_s")}s）')
+            # ⚠️ 区域过滤的账本必须**出声**（不静默红线）：
+            #    判不出区县而被丢掉的条数要说出来，否则用户以为"这片就这么点房源"，
+            #    实际是"标题没写区县、我们不敢认"。
+            _dun = fetch_meta.get('district_unknown') or 0
+            _dsc = fetch_meta.get('district_scope') or ''
+            if _dun:
+                fetch_txt += (f'；已按「{_dsc}」逐条校验区县归属，'
+                              f'另有 {_dun} 条标题/位置都没写区县、无法证实归属**未纳入**'
+                              f'（宁少不掺沙）')
             _dm = fetch_meta.get('detail') or {}
             if _dm:
                 if _dm.get('targets'):
@@ -2772,7 +2919,11 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
     _st.start('字段补全+排序')
     scope_label = f'{city or ""}{area_filter}'
     candidates = _fill_field_states(candidates, shops, scope_label, category or None)
-    candidates = _rank_candidates(candidates, target_lng, target_lat)
+    # ⚠️ 用户给的是「区 + 地标」（"海曙区火车站"）时，**距离才是主诉求** ——
+    #    否则 6 公里外字段齐全的铺子会排在 1.7 公里缺面积的铺子前面（实测踩到）。
+    #    纯区县查询（"海曙区"）保持原行为：完整度优先。
+    candidates = _rank_candidates(candidates, target_lng, target_lat,
+                                  dist_first=bool(area and _landmark_of(area)))
     _st.stop('字段补全+排序')
 
     if candidates:
@@ -2809,18 +2960,38 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
         if _risk_txt:
             risk = f'区域转让风险（谁在逃离）：{_risk_txt}。\n'
         shortage = (f'⚠️ 该区域真实在租房源就这么多，**不足 15 家**不是抓取失败 —— '
-                    f'已把 58 的 PC 3 页 + 移动端都翻过。\n'
+                    f'58 的城市首页、区县关键词页、移动端都翻过了。\n'
                     if len(candidates) < CAND_TOTAL else '')
+        # 距离概况（2026-09-26）：用户说"XX 附近"，就得先告诉他"附近"兑现到哪一步。
+        # ⚠️ 必须说清 58 是**按区县**给房源的、没有按距离检索 —— 否则用户会把
+        #    卡片顺序理解成"由近到远"，而实际上最近的挂牌可能就在 1.7 公里外。
+        #    这是"不静默"红线：距离是我们自己算的，算出来什么样就说什么样。
+        near = ''
+        _ds = [c.get('dist_m') for c in candidates if c.get('dist_m') is not None]
+        if area and _landmark_of(area):
+            if _ds:
+                _le1 = sum(1 for d in _ds if d <= 1000)
+                near = (f'距「{area}」的直线距离：最近 **{_fmt_m(min(_ds))}**、'
+                        f'最远 **{_fmt_m(max(_ds))}**，1 公里内 **{_le1}** 家'
+                        f'（其中 {len(_ds)}/{len(candidates)} 家能精确定位，已按由近到远排序）。\n'
+                        f'⚠️ 58 是**按区县**给房源、没有按距离检索 —— '
+                        f'这个区此刻离得更近的挂牌就是没有。\n')
+            else:
+                # 一条都定不了位时说清楚 —— 沉默会让用户以为"就在附近"
+                near = (f'⚠️ 这 {len(candidates)} 家**没有一条能精确定位**'
+                        f'（平台只给了商圈/街道级位置，没有门牌或楼宇名），'
+                        f'所以**算不出它们离「{area}」多远** —— 卡片不显示距离，'
+                        f'这不是"距离为 0"，是"位置不可知"。\n')
         if place_mode:
             reply = (f'在「{area}」共找到 **{len(candidates)}** 个在租商铺（58同城实时抓取）。\n'
-                     f'{shortage}{mix}{geo}{risk}'
+                     f'{district_conflict}{near}{shortage}{mix}{geo}{risk}'
                      f'数据可信度：{state_brief}。\n'
                      '已按「租金/面积是否齐全」排序，从头看就行。\n\n'
                      '选中一家后，我按奶茶/甜品/早餐/便利店四个品类各算一遍，'
                      '告诉你这里开什么最赚 —— 从右侧卡片选（或回复"选1"）：')
         else:
             reply = (f'在「{area}」为你找到 **{len(candidates)}** 个候选商铺（58同城实时抓取）。\n'
-                     f'{shortage}{mix}{geo}{risk}'
+                     f'{district_conflict}{near}{shortage}{mix}{geo}{risk}'
                      f'数据可信度：{state_brief}。\n'
                      '已按「租金/面积是否齐全」排序，点右侧卡片选择（也可回复"选1"）：')
     else:
@@ -2829,7 +3000,8 @@ async def search_rental_node(state: AgentState) -> Dict[str, Any]:
                      f'{fetch_meta.get("reason") or "反爬/网络"}。\n'
                      '可以稍后再试，或换个区域。')
         else:
-            reply = (f'在「{area}」确实没有搜到在租商铺（58 已翻 3 页 + 移动端，'
+            reply = (f'{district_conflict}'
+                     f'在「{area}」确实没有搜到在租商铺（58 已翻 3 页 + 移动端，'
                      f'不是抓取失败）。\n'
                      '这不是"系统没数据"，是**这一带此刻真的没有挂牌** ——'
                      '换个区域，或者说个更宽的片区名（如"杭州滨江"而不是"滨江某条小路"）。')
@@ -3117,10 +3289,11 @@ async def analyze_node(state: AgentState) -> Dict[str, Any]:
     st = _Stage(state)
 
     st.start('评分引擎')
+    _biz_m = await _biz_ctx(state, addr)
     result = await asyncio.to_thread(
         score_site, cat, lng, lat, rent, addr, area,
         investment=state.get('investment'), staff=state.get('staff'),
-        brand=state.get('brand')
+        brand=state.get('brand'), biz=_biz_m
     )
     st.stop('评分引擎')
 
@@ -3281,6 +3454,41 @@ async def interpret_node(state: AgentState) -> Dict[str, Any]:
         _view['profit'] = _slim_profit(result['profit'])
     if result.get('profit_bands') is not None:
         _view['profit_bands'] = _slim_bands(result['profit_bands'])
+
+    # ---- 外部文本定界（2026-09-28，prompt injection 防线）----
+    # _view 里有三处**不受我们控制**的文本：门店标题/地址（58 个人发布）、
+    # 竞品洞察（高德 POI 的店名/tag）、商圈名。它们在引擎里是数据，在 prompt 里
+    # 却与指令同处一个字符串平面。这里做两件事：
+    #   ① 剥掉这些字符串里的分隔符/控制字符/换行（防"提前闭合"与伪造轮次）；
+    #   ② 扫注入特征并**出声**（标题里带指令本身就是情报，不静默）。
+    # system 侧的定界声明由 compose_system_prompt 统一追加（一处生效）。
+    # ⚠️ 净化**只写副本** `_view`，绝不回写 result（红线：只改送 prompt 的那份）。
+    _inj_hits, _inj_samples = set(), []
+    try:
+        from agent import external_text as _ext
+        # 逐字段净化：只在**确实存在**的键上动手，避免凭空造键
+        for _k in ('name', '地址', 'shop'):
+            if isinstance(_view.get(_k), str):
+                _view[_k] = _ext.sanitize(_view[_k], max_len=120)
+        if _view.get('competitor_insight') is not None:
+            _h, _s = _ext.scan_dict(_view['competitor_insight'])
+            _inj_hits |= _h
+            _inj_samples += _s
+        if _view.get('storefront') is not None:
+            _h, _s = _ext.scan_dict(_view['storefront'])
+            _inj_hits |= _h
+            _inj_samples += _s
+        for _k in ('name', '地址'):
+            if _view.get(_k):
+                _inj_hits |= set(_ext.scan_injection(_view[_k]))
+        if _inj_hits:
+            await _emit(state, 'error', '外部文本注入告警',
+                        f'检测到疑似操纵性文本（特征：{"/".join(sorted(_inj_hits))}）'
+                        f'，定位：{_inj_samples[:2]} —— 已按"数据"而非"指令"处理，'
+                        f'结论不受其影响')
+    except Exception:
+        pass
+
     user_msg = (f'评分引擎返回了以下真实数据：\n{json.dumps(_view, ensure_ascii=False)}\n\n'
                 f'请基于以上数据，向用户输出选址建议。')
 
@@ -3333,11 +3541,86 @@ async def interpret_node(state: AgentState) -> Dict[str, Any]:
 
     summary = f"品类: {result.get('category')}, 地址: {result.get('name')}, 总分: {result.get('total')}, 结论: {result.get('verdict')}"
 
+    # ---- 参数回显（2026-09-28）----
+    # 五项参数全靠抽取，任一项错都会**确定性地**算出错误结论。出结论时把
+    # 引擎实际用的参数回显一次，用户一眼能看出"我报的是 3块一平一天，它当成 3 元"。
+    # 放在解读**之后**（先说结论，再给核对口），且明确"改一句我就重算"。
+    _pf = []
+    if state.get('category'):
+        _pf.append(f'品类 {state["category"]}')
+    if state.get('address'):
+        _pf.append(f'位置 {_clean_area(state["address"])}')
+    if state.get('rent') is not None:
+        _pf.append(f'月租 ¥{state["rent"]:,.0f}')
+    if state.get('area') is not None:
+        _pf.append(f'面积 {state["area"]}㎡')
+    if state.get('brand'):
+        _pf.append(f'品牌 {state["brand"]}')
+    if state.get('investment') is not None:
+        _pf.append(f'前期投入 ¥{state["investment"]:,.0f}')
+    if state.get('staff') is not None:
+        _pf.append(f'人数 {state["staff"]} 人')
+    if _pf:
+        interpretation += ('\n\n---\n**本次测算实际用的参数**：' + ' ｜ '.join(_pf) +
+                           '。\n（任一项不对，回一句改一下我就重算 —— '
+                           '尤其是**租金单位**：年租、元/㎡/天 的写法容易被读错口径。）')
+
+    # ---- 数字溯源校验（2026-09-28，专家评审 P0-3）----
+    # 「引擎产数、LLM 产文」在改造前**只是一句承诺**：没有任何机制阻止 LLM 在
+    # 解读里写出一个引擎没算过的数字。这里给它一个机器断言 ——
+    # 抽出话术里的金额/百分比/月数，逐一与本次引擎结果比对（相对容差 1%，
+    # 吸收取整差异：专家点名的 ¥73,614 vs ¥73,615 属此类）。
+    # 设计上是**诊断而非改写**：抽取器会误报（"3 个建议"里的 3、年份），
+    # 硬改会把正确的话改错；只有"引擎已否决、话术劝签"这一种才硬拦。
+    _nc = None
+    try:
+        from agent import output_guard
+        # 审计对象只取 LLM 产出的那部分（参数回显与租金口径声明是本引擎自己
+        # 拼的，那些数字必然在参考系里，混进去会把命中率稀释成假绿）
+        # extra_refs=state：用户输入的 investment/staff/rent/area 是**合法数值**，
+        # 引擎会照读照回显，但不一定进 result（实测：话术报"前期投入 18 万"
+        # 在只给 result 时会被误判为幻觉，ratio 掉到 0.33）。必须一起作为参考源。
+        _nc = output_guard.audit(interpretation, result, extra_refs=state)
+        _num = _nc['numbers']
+        if _num['checked'] > 0 and not _num['ok']:
+            _miss = '、'.join(str(u.get('value')) for u in _num['untraced'][:5])
+            await _emit(state, 'tool', '数字溯源校验',
+                        input_=f"{_num['checked']} 个数字 → 引擎结果比对",
+                        output=(f"⚠️ {_num['untraced_n']}/{_num['checked']} 个数字"
+                                f"未能溯源自引擎（命中率 {_num['ratio']*100:.0f}%）：{_miss}"
+                                f" —— 已挂 result['number_check']，未改写"))
+        else:
+            await _emit(state, 'tool', '数字溯源校验',
+                        input_=f"{_num['checked']} 个数字 → 引擎结果比对",
+                        output=f"✓ {_num['traced']}/{_num['checked']} 个数字均溯源自引擎"
+                               f"（命中率 {_num['ratio']*100:.0f}%）")
+        if not _nc['verdict']['ok']:
+            await _emit(state, 'error', '结论一致性告警', _nc['verdict']['reason'])
+    except Exception as _e:
+        _nc = {'error': str(_e)}
+
+    # ---- 决策记录（证据包哈希，2026-09-28）----
+    # 一句话把"这次结论可复核"钉在回复里：指纹 + 录入的关键参数。
+    # 详细证据包在 result['decision_record'] 里（供报告/审计导出）。
+    # ⚠️ 指纹不含 LLM 解读文本 —— 解读换个温度就变，进去会让指纹随措辞漂。
+    _drec = None
+    try:
+        from agent import decision_record as _dr
+        _drec = _dr.build_record(dict(state, number_check=_nc), result)
+        result['decision_record'] = _drec
+        interpretation += ('\n\n' + _dr.format_record(_drec, brief=True) +
+                           '\n（本次决策的证据包已冻结；同一输入 + 同一口径重跑必得同一指纹，'
+                           '引擎常量或数据一变指纹即变 —— 旧结论不会与新口径混用。）')
+    except Exception:
+        _drec = None
+
     return {
         'interpretation': interpretation,
         'messages': state['messages'] + [{'role': 'assistant', 'content': interpretation}],
         'phase': 'chat',
         'context': summary,
+        'number_check': _nc,
+        'decision_record': _drec,
     }
 
 
@@ -4006,6 +4289,52 @@ def build_agent_graph():
     workflow.add_edge('compare', END)
 
     return workflow.compile()
+
+
+# ---------------------------------------------------------------
+# 专家视角自动判定（2026-09-25）
+# ---------------------------------------------------------------
+# 目的：用户说了带明显倾向的话，自动切到对应专家视角，不必先手点面板。
+#
+# 为什么做成"纯函数"而不是写进 classify_node：
+#   ① classify_node 有多个 return 分支，改它要动整套阶段决策逻辑，风险不成比例；
+#   ② 这里只需 user_msg 一个入参，判定与图结构无关，可单独测。
+#
+# ⚠️ 与"用户手选"的关系：本函数**只产出建议**，采不采纳由调用方决定 ——
+#    UI 层（app_chainlit）才知道用户本轮是否发过 `##专家:<id>##` 显式切换指令；
+#    手选优先的最终防线同时由前端 CUR_LOCK（6 秒）兜住（sidebar.js:3271）。
+#
+# ⚠️ 纪律：只认**高置信度关键词**，命中不到就返回 None。**不做语义猜测** ——
+#    猜错会让用户觉得"它自己乱切"，比不切更糟。
+_EXPERT_RULES = [
+    # (专家 id, 触发关键词元组) —— 列表顺序即优先级，先匹配先赢
+    ('storefront_auditor',      ('门头照', '拍张照', '上传照片', '招牌照片')),
+    ('model_auditor',           ('凭什么准', '准不准', '可靠吗', '可信吗', '怎么算的',
+                                 '哪里不准', '为什么这么算', '模型的局限', '误差多大')),
+    ('startup_policy_advisor',  ('证照', '营业执照', '许可证', '办证', '补贴',
+                                 '政策', '食品经营许可证', '消防')),
+    ('franchise_advisor',       ('加盟费', '加盟', '品牌费', '保证金', '代理费', '加盟条件')),
+    ('rent_negotiator',         ('谈判', '砍价', '压价', '谈租', '租金能', '便宜点',
+                                 '降租', '房东', '压下来')),
+    ('competitor_analyst',      ('竞争', '对手', '同行', '挤不挤', '隔壁', '饱和', '分流')),
+    ('store_diagnosis_advisor', ('我的店', '店里流水', '店里的流水', '门店流水', '本店流水',
+                                 '已经开了', '还能撑', '经营诊断', '开了半年', '已经营业')),
+    ('category_reverse',        ('开什么店', '做什么好', '适合开', '开什么好', '反推')),
+]
+
+
+def infer_expert(user_msg: str):
+    """按用户这句话推断该用哪个专家视角；无高置信命中时返回 None。
+
+    返回值是一个**建议**，调用方（UI 层）决定是否采纳。
+    """
+    t = (user_msg or '').strip()
+    if not t:
+        return None
+    for eid, kws in _EXPERT_RULES:
+        if any(k in t for k in kws):
+            return eid
+    return None
 
 
 # 编译图
